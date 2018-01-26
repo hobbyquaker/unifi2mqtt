@@ -13,10 +13,33 @@
 
 `$ sudo npm install -g unifi2mqtt`
 
+I suggest to use [pm2](http://pm2.keymetrics.io/) to manage the unifi2mqtt process (start on system boot, manage log 
+files, ...)
 
 ### Usage 
 
-`$ unifi2mqtt --help`  
+```
+Usage: unifi2mqtt [options]
+
+Options:
+  -a, --unifi-host      unifi hostname or address         [default: "127.0.0.1"]
+  -p, --unifi-port      unifi port                               [default: 8443]
+  -c, --unifi-user      unifi user                            [default: "admin"]
+  -s, --unifi-password  unifi password                                [required]
+  -w, --unifi-site      unifi site                          [default: "default"]
+  -k, --insecure        allow connection to unifi without valid certificate
+  -v, --verbosity       possible values: "error", "warn", "info", "debug"
+                                                               [default: "info"]
+  -n, --name            instance name. used as topic prefix   [default: "unifi"]
+  -u, --url             mqtt broker url            [default: "mqtt://127.0.0.1"]
+  -h, --help            Show help                                      [boolean]
+  --version             Show version number                            [boolean]
+
+```
+
+### Topics
+
+* `<name>/status/<ssid>/client/<hostname>`
 
 
 ## License
