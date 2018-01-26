@@ -115,9 +115,11 @@ function getClients() {
     unifi.getClients().then(clients => {
         clients.data.forEach(client => {
             mqttPub([config.name, 'status', client.essid, 'client', client.hostname].join('/'), {val: true, mac: client.mac, ts: (new Date()).getTime()}, {retain: true});
-            const index = retainedClients[client.essid].indexOf(client.hostname);
-            if (index > -1) {
-                retainedClients[client.essid].splice(index, 1);
+            if (retainedClients[client.essid]) {
+                const index = retainedClients[client.essid].indexOf(client.hostname);
+                if (index > -1) {
+                    retainedClients[client.essid].splice(index, 1);
+                }
             }
         });
         Object.keys(retainedClients).forEach(essid => {
