@@ -1,0 +1,46 @@
+{
+  "name": "unifi2mqtt",
+  "version": "0.0.1",
+  "description": "Publish connected clients from Ubiquiti Unifi to MQTT",
+  "main": "index.js",
+  "bin": {
+    "unifi2mqtt": "index.js"
+  },
+  "preferGlobal": true,
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "scripts": {
+    "test": "camo-purge ; xo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hobbyquaker/unifi2mqtt"
+  },
+  "keywords": [
+    "mqtt",
+    "smarthome",
+    "unifi",
+    "ubiquiti",
+    "clients"
+  ],
+  "author": "Sebastian Raff <hobbyquaker@gmail.com> (https://hobbyquaker.github.io)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hobbyquaker/unifi2mqtt/issues"
+  },
+  "homepage": "https://github.com/hobbyquaker/unifi2mqtt",
+  "dependencies": {
+    "mqtt": "^2.15.1",
+    "unifi-events": "hobbyquaker/unifi-events",
+    "yalm": "^4.1.0",
+    "yargs": "^11.0.0"
+  },
+  "devDependencies": {
+    "camo-purge": "latest",
+    "xo": "latest"
+  },
+  "xo": {
+    "space": 4
+  }
+}
