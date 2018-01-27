@@ -1,6 +1,6 @@
 {
   "name": "unifi2mqtt",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Publish connected clients from Ubiquiti Unifi to MQTT",
   "main": "index.js",
   "bin": {
@@ -32,7 +32,7 @@
   "homepage": "https://github.com/hobbyquaker/unifi2mqtt",
   "dependencies": {
     "mqtt": "^2.15.1",
-    "unifi-events": "hobbyquaker/unifi-events",
+    "unifi-events": "^0.1.6",
     "yalm": "^4.1.0",
     "yargs": "^11.0.0"
   },
