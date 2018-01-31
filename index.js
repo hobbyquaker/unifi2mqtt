@@ -112,7 +112,7 @@ function clientsReceived() {
 }
 
 function getWifiNetworks() {
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
         unifi.get('rest/wlanconf').then(res => {
             res.data.forEach(wifi => {
                 dataWifi[wifi._id] = wifi;
@@ -125,7 +125,7 @@ function getWifiNetworks() {
 }
 
 function getDevices() {
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
         unifi.get('stat/device').then(res => {
             res.data.forEach(dev => {
                 dataDevice[dev._id] = dev;
@@ -146,10 +146,10 @@ function getClients() {
     log.info('unifi > getClients');
     unifi.get('stat/sta').then(clients => {
         clients.data.forEach(client => {
-            if (!numClients[client.essid]) {
-                numClients[client.essid] = 1;
-            } else {
+            if (numClients[client.essid]) {
                 numClients[client.essid] += 1;
+            } else {
+                numClients[client.essid] = 1;
             }
             mqttPub([config.name, 'status', 'wifi', client.essid, 'client', client.hostname].join('/'), {val: true, mac: client.mac, ts: (new Date()).getTime()}, {retain: true});
             if (retainedClients[client.essid]) {
@@ -181,10 +181,10 @@ unifi.on('ctrl.error', err => {
 });
 
 unifi.on('*.disconnected', data => {
-    if (!numClients[data.ssid]) {
-        numClients[data.ssid] = 0;
-    } else {
+    if (numClients[data.ssid]) {
         numClients[data.ssid] -= 1;
+    } else {
+        numClients[data.ssid] = 0;
     }
     wifiInfoPub();
     mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'disconnected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
@@ -192,10 +192,10 @@ unifi.on('*.disconnected', data => {
 });
 
 unifi.on('*.connected', data => {
-    if (!numClients[data.ssid]) {
-        numClients[data.ssid] = 1;
-    } else {
+    if (numClients[data.ssid]) {
         numClients[data.ssid] += 1;
+    } else {
+        numClients[data.ssid] = 1;
     }
     wifiInfoPub();
     mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'connected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
@@ -210,7 +210,6 @@ function wifiInfoPub() {
         sum += numClients[ssid];
         mqttPub([config.name, 'status', 'wifi', ssid, 'clientCount'].join('/'), {val: numClients[ssid], ts}, {retain: true});
         mqttPub([config.name, 'status', 'wifi', ssid, 'enabled'].join('/'), {val: dataWifi[idWifi[ssid]].enabled, ts}, {retain: true});
-
     });
     mqttPub([config.name, 'status', 'clientCount'].join('/'), {val: sum, ts}, {retain: true});
 }
