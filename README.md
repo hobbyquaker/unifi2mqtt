@@ -41,14 +41,19 @@ Options:
 
 Topics and Payloads follow [mqtt-smarthome architectural proposal](https://github.com/mqtt-smarthome/mqtt-smarthome).
 
-* `<name>/status/<ssid>/client/<hostname>` - `{"val":true}` if client is connected to the wifi network, `{"val":false}`
+#### Topics published by unifi2mqtt
+
+* `<name>/status/wifi/<ssid>/client/<hostname>` - `{"val":true}` if client is connected to the wifi network, `{"val":false}`
 otherwise. Object also contains the properties `mac` and `ts`. Retained.
-* `<name>/status/<ssid>/event/connected` - Client connect event. Payload as above. Not retained.
-* `<name>/status/<ssid>/event/disconnected` - Client disconnect event. Payload as above. Not retained.
-* `<name>/status/<ssid>/clientCount` - number of clients in specific wifi network, e.g. `{"val":5}`. Retained.
+* `<name>/status/wifi/<ssid>/event/connected` - Client connect event. Payload as above. Not retained.
+* `<name>/status/wifi/<ssid>/event/disconnected` - Client disconnect event. Payload as above. Not retained.
+* `<name>/status/wifi/<ssid>/clientCount` - number of clients in specific wifi network, e.g. `{"val":5}`. Retained.
+* `<name>/status/wifi/<ssid>/enabled` - wifi enabled status, e.g. `{"val":true}`. Retained.
 * `<name>/status/clientCount` - number of clients in all wifi networks, e.g. `{"val":12}`. Retained.
 * `<name>/connected` - `1` if connected to mqtt broker, `2` if connected to UniFi Controller, `0` on last will. 
 Retained.
+
+#### Topics subscribed by unifi2mqtt
 
 
 ## License
