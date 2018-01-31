@@ -53,8 +53,12 @@ otherwise. Object also contains the properties `mac` and `ts`. Retained.
 * `<name>/connected` - `1` if connected to mqtt broker, `2` if connected to UniFi Controller, `0` on last will. 
 Retained.
 
+
 #### Topics subscribed by unifi2mqtt
 
+* `<name>/set/device/<device>/led` - switch device led on or off. Payload `on`, `off` or `default` (default uses 
+site-wide led setting).
+* `<name>/set/wifi/<ssid>/enabled` - enable/disable wireless network. Payload `true` or `false`.
 
 ## License
 

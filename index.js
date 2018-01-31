@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+/* eslint-disable camelcase */
+
 const Unifi = require('ubnt-unifi');
 const log = require('yalm');
 const Mqtt = require('mqtt');
@@ -55,29 +57,26 @@ mqtt.on('error', err => {
     log.error('mqtt', err);
 });
 
-mqtt.on('message', (topic, payload) => {
-    payload = payload.toString();
-    log.debug('mqtt <', topic, payload);
-
-    const parts = topic.split('/');
-
-    if (parts[1] === 'status' && parts[2] === 'wifi' && parts[4] === 'client') {
-        clearTimeout(retainedClientsTimeout);
-        retainedClientsTimeout = setTimeout(clientsReceived, 2000);
-        try {
-            const val = JSON.parse(payload).val;
-            if (val) {
-                if (retainedClients[parts[2]]) {
-                    retainedClients[parts[2]].push(parts[4]);
-                } else {
-                    retainedClients[parts[2]] = [parts[4]];
-                }
-            }
-        } catch (err) {
-            log.error(topic, payload, err);
+function parsePayload(payload) {
+    let val;
+    try {
+        val = JSON.parse(payload);
+        if (typeof val.val !== 'undefined') {
+            val = val.val;
+        }
+    } catch (err) {
+        if (val === 'true') {
+            val = true;
+        } else if (val === 'false') {
+            val = false;
+        } else if (isNaN(payload)) {
+            val = payload;
+        } else {
+            val = parseFloat(payload);
         }
     }
-});
+    return val;
+}
 
 function unifiConnect(connected) {
     if (unifiConnected !== connected) {
@@ -104,8 +103,57 @@ const unifi = new Unifi({
     insecure: config.insecure
 });
 
+mqtt.on('message', (topic, payload) => {
+    payload = payload.toString();
+    log.debug('mqtt <', topic, payload);
+
+    const parts = topic.split('/');
+
+    if (parts[1] === 'set' && parts[2] === 'device' && parts[4] === 'led') {
+        // Set device led override mode
+        let val = parsePayload(payload);
+        if (val === 'on' || val === true || ((typeof val === 'number') && val)) {
+            val = 'on';
+        } else if (val === 'off' || val === false || ((typeof val === 'number') && !val)) {
+            val = 'off';
+        } else {
+            val = 'default';
+        }
+        if (idDevice[parts[3]]) {
+            log.debug('unifi > rest/device/' + idDevice[parts[3]], {led_override: val});
+            unifi.post('rest/device/' + idDevice[parts[3]], {led_override: val});
+        } else {
+            log.warn('unknown device', parts[3]);
+        }
+    } else if (parts[1] === 'set' && parts[2] === 'wifi' && parts[4] === 'enabled') {
+        // Set wireless network enable/disable
+        if (idWifi[parts[3]]) {
+            log.debug('unifi > upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))});
+            unifi.post('upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))});
+        } else {
+            log.warn('unknown wireless network', parts[3]);
+        }
+    } else if (parts[1] === 'status' && parts[2] === 'wifi' && parts[4] === 'client') {
+        // Retained client status
+        clearTimeout(retainedClientsTimeout);
+        retainedClientsTimeout = setTimeout(clientsReceived, 2000);
+        try {
+            const val = JSON.parse(payload).val;
+            if (val) {
+                if (retainedClients[parts[3]]) {
+                    retainedClients[parts[3]].push(parts[5]);
+                } else {
+                    retainedClients[parts[3]] = [parts[5]];
+                }
+            }
+        } catch (err) {
+            log.error(topic, payload, err);
+        }
+    }
+});
+
 function clientsReceived() {
-    log.info('all retained clients received');
+    log.info('retained clients received');
     log.info('mqtt unsubscribe', config.name + '/status/wifi/+/client/+');
     mqtt.unsubscribe(config.name + '/status/wifi/+/client/+');
     mqttConnected = true;
@@ -113,6 +161,7 @@ function clientsReceived() {
 
 function getWifiNetworks() {
     return new Promise(resolve => {
+        log.debug('unifi > rest/wlanconf');
         unifi.get('rest/wlanconf').then(res => {
             res.data.forEach(wifi => {
                 dataWifi[wifi._id] = wifi;
@@ -126,6 +175,7 @@ function getWifiNetworks() {
 
 function getDevices() {
     return new Promise(resolve => {
+        log.debug('unifi > stat/device');
         unifi.get('stat/device').then(res => {
             res.data.forEach(dev => {
                 dataDevice[dev._id] = dev;
@@ -143,7 +193,7 @@ function getClients() {
         return;
     }
     numClients = {};
-    log.info('unifi > getClients');
+    log.info('unifi > stat/sta');
     unifi.get('stat/sta').then(clients => {
         clients.data.forEach(client => {
             if (numClients[client.essid]) {
