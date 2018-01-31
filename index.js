@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const UnifiEvents = require('unifi-events');
+const Unifi = require('ubnt-unifi');
 const log = require('yalm');
 const Mqtt = require('mqtt');
 const config = require('./config.js');
@@ -89,13 +89,13 @@ function unifiConnect(connected) {
 }
 
 log.info('trying to connect https://' + config.unifiHost + ':' + config.unifiPort);
-const unifi = new UnifiEvents({
-    controller: 'https://' + config.unifiHost + ':' + config.unifiPort,
+const unifi = new Unifi({
+    host: config.unifiHost,
+    port: config.unifiPort,
     username: config.unifiUser,
     password: config.unifiPassword,
     site: config.unifiSite,
-    rejectUnauthorized: !config.insecure,
-    listen: true
+    insecure: config.insecure
 });
 
 function clientsReceived() {
@@ -112,7 +112,7 @@ function getClients() {
     }
     numClients = {};
     log.info('unifi > getClients');
-    unifi.getClients().then(clients => {
+    unifi.get('stat/sta').then(clients => {
         clients.data.forEach(client => {
             if (!numClients[client.essid]) {
                 numClients[client.essid] = 1;
@@ -136,21 +136,19 @@ function getClients() {
     });
 }
 
-unifi.on('websocket-status', data => {
-    if (data.match(/Connected/)) {
-        log.debug(data);
-        unifiConnect(true);
-    } else if (data.match(/disconnected/)) {
-        log.debug(data);
-        unifiConnect(false);
-    } else if (data.match(/error/)) {
-        log.error(data);
-    } else {
-        log.debug(data);
-    }
+unifi.on('ctrl.connect', () => {
+    unifiConnect(true);
 });
 
-unifi.on('disconnected', data => {
+unifi.on('ctrl.disconnect', () => {
+    unifiConnect(false);
+});
+
+unifi.on('ctrl.error', err => {
+    log.error(err.message);
+});
+
+unifi.on('*.disconnected', data => {
     if (!numClients[data.ssid]) {
         numClients[data.ssid] = 0;
     } else {
@@ -161,7 +159,7 @@ unifi.on('disconnected', data => {
     mqttPub([config.name, 'status', data.ssid, 'client', data.hostname].join('/'), {val: false, mac: data.user, ts: data.time}, {retain: true});
 });
 
-unifi.on('connected', data => {
+unifi.on('*.connected', data => {
     if (!numClients[data.ssid]) {
         numClients[data.ssid] = 1;
     } else {
