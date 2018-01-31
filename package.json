@@ -1,7 +1,7 @@
 {
   "name": "unifi2mqtt",
   "version": "0.0.6",
-  "description": "Connect Ubiquiti Unifi controller to MQTT",
+  "description": "Connect Ubiquiti UniFi controller to MQTT",
   "main": "index.js",
   "bin": {
     "unifi2mqtt": "index.js"
