@@ -27,6 +27,10 @@ let unifiConnected = false;
 let retainedClientsTimeout;
 let numClients = {};
 const retainedClients = {};
+const idWifi = {};
+const dataWifi = {};
+const idDevice = {};
+const dataDevice = {};
 
 mqtt.on('connect', () => {
     log.info('mqtt connected', config.url);
@@ -35,8 +39,8 @@ mqtt.on('connect', () => {
     log.info('mqtt subscribe', config.name + '/set/#');
     mqtt.subscribe(config.name + '/set/#');
 
-    log.info('mqtt subscribe', config.name + '/status/+/client/+');
-    mqtt.subscribe(config.name + '/status/+/client/+');
+    log.info('mqtt subscribe', config.name + '/status/wifi/+/client/+');
+    mqtt.subscribe(config.name + '/status/wifi/+/client/+');
     retainedClientsTimeout = setTimeout(clientsReceived, 2000);
 });
 
@@ -57,7 +61,7 @@ mqtt.on('message', (topic, payload) => {
 
     const parts = topic.split('/');
 
-    if (parts[1] === 'status' && parts[3] === 'client') {
+    if (parts[1] === 'status' && parts[2] === 'wifi' && parts[4] === 'client') {
         clearTimeout(retainedClientsTimeout);
         retainedClientsTimeout = setTimeout(clientsReceived, 2000);
         try {
@@ -81,7 +85,9 @@ function unifiConnect(connected) {
         mqttPub(config.name + '/connected', unifiConnected ? '2' : '1', {retain: true});
         if (unifiConnected) {
             log.info('unifi connected');
-            getClients();
+            getWifiNetworks()
+                .then(getDevices)
+                .then(getClients);
         } else {
             log.info('unifi disconnected');
         }
@@ -100,9 +106,35 @@ const unifi = new Unifi({
 
 function clientsReceived() {
     log.info('all retained clients received');
-    log.info('mqtt unsubscribe', config.name + '/status/+/client/+');
-    mqtt.unsubscribe(config.name + '/status/+/client/+');
+    log.info('mqtt unsubscribe', config.name + '/status/wifi/+/client/+');
+    mqtt.unsubscribe(config.name + '/status/wifi/+/client/+');
     mqttConnected = true;
+}
+
+function getWifiNetworks() {
+    return new Promise((resolve, reject) => {
+        unifi.get('rest/wlanconf').then(res => {
+            res.data.forEach(wifi => {
+                dataWifi[wifi._id] = wifi;
+                idWifi[wifi.name] = wifi._id;
+            });
+            log.debug('unifi got', res.data.length, 'wifi networks');
+            resolve();
+        });
+    });
+}
+
+function getDevices() {
+    return new Promise((resolve, reject) => {
+        unifi.get('stat/device').then(res => {
+            res.data.forEach(dev => {
+                dataDevice[dev._id] = dev;
+                idDevice[dev.name] = dev._id;
+            });
+            log.debug('unifi got', res.data.length, 'devices');
+            resolve();
+        });
+    });
 }
 
 function getClients() {
@@ -119,7 +151,7 @@ function getClients() {
             } else {
                 numClients[client.essid] += 1;
             }
-            mqttPub([config.name, 'status', client.essid, 'client', client.hostname].join('/'), {val: true, mac: client.mac, ts: (new Date()).getTime()}, {retain: true});
+            mqttPub([config.name, 'status', 'wifi', client.essid, 'client', client.hostname].join('/'), {val: true, mac: client.mac, ts: (new Date()).getTime()}, {retain: true});
             if (retainedClients[client.essid]) {
                 const index = retainedClients[client.essid].indexOf(client.hostname);
                 if (index > -1) {
@@ -129,10 +161,10 @@ function getClients() {
         });
         Object.keys(retainedClients).forEach(essid => {
             retainedClients[essid].forEach(hostname => {
-                mqttPub([config.name, 'status', essid, 'client', hostname].join('/'), {val: false, ts: (new Date()).getTime()}, {retain: true});
+                mqttPub([config.name, 'status', 'wifi', essid, 'client', hostname].join('/'), {val: false, ts: (new Date()).getTime()}, {retain: true});
             });
         });
-        numClientsPub();
+        wifiInfoPub();
     });
 }
 
@@ -154,9 +186,9 @@ unifi.on('*.disconnected', data => {
     } else {
         numClients[data.ssid] -= 1;
     }
-    numClientsPub();
-    mqttPub([config.name, 'status', data.ssid, 'event', 'disconnected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
-    mqttPub([config.name, 'status', data.ssid, 'client', data.hostname].join('/'), {val: false, mac: data.user, ts: data.time}, {retain: true});
+    wifiInfoPub();
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'disconnected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.hostname].join('/'), {val: false, mac: data.user, ts: data.time}, {retain: true});
 });
 
 unifi.on('*.connected', data => {
@@ -165,17 +197,20 @@ unifi.on('*.connected', data => {
     } else {
         numClients[data.ssid] += 1;
     }
-    numClientsPub();
-    mqttPub([config.name, 'status', data.ssid, 'event', 'connected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
-    mqttPub([config.name, 'status', data.ssid, 'client', data.hostname].join('/'), {val: true, mac: data.user, ts: data.time}, {retain: true});
+    wifiInfoPub();
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'connected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.hostname].join('/'), {val: true, mac: data.user, ts: data.time}, {retain: true});
 });
 
-function numClientsPub() {
+function wifiInfoPub() {
     let sum = 0;
     const ts = (new Date()).getTime();
-    Object.keys(numClients).forEach(ssid => {
+    Object.keys(idWifi).forEach(ssid => {
+        numClients[ssid] = numClients[ssid] || 0;
         sum += numClients[ssid];
-        mqttPub([config.name, 'status', ssid, 'clientCount'].join('/'), {val: numClients[ssid], ts}, {retain: true});
+        mqttPub([config.name, 'status', 'wifi', ssid, 'clientCount'].join('/'), {val: numClients[ssid], ts}, {retain: true});
+        mqttPub([config.name, 'status', 'wifi', ssid, 'enabled'].join('/'), {val: dataWifi[idWifi[ssid]].enabled, ts}, {retain: true});
+
     });
     mqttPub([config.name, 'status', 'clientCount'].join('/'), {val: sum, ts}, {retain: true});
 }
