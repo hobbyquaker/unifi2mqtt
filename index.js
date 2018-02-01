@@ -121,7 +121,7 @@ mqtt.on('message', (topic, payload) => {
         }
         if (idDevice[parts[3]]) {
             log.debug('unifi > rest/device/' + idDevice[parts[3]], {led_override: val});
-            unifi.post('rest/device/' + idDevice[parts[3]], {led_override: val});
+            unifi.put('rest/device/' + idDevice[parts[3]], {led_override: val});
         } else {
             log.warn('unknown device', parts[3]);
         }
