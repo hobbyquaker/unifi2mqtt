@@ -27,7 +27,7 @@ Options:
   -c, --unifi-user      unifi user                            [default: "admin"]
   -s, --unifi-password  unifi password                                [required]
   -w, --unifi-site      unifi site                          [default: "default"]
-  -k, --insecure        allow connection to unifi without valid certificate
+  -k, --insecure        allow ssl connections without valid certificate
   -v, --verbosity       possible values: "error", "warn", "info", "debug"
                                                                [default: "info"]
   -n, --name            instance name. used as topic prefix   [default: "unifi"]
@@ -50,6 +50,7 @@ otherwise. Object also contains the properties `mac` and `ts`. Retained.
 * `<name>/status/wifi/<ssid>/clientCount` - number of clients in specific wifi network, e.g. `{"val":5}`. Retained.
 * `<name>/status/wifi/<ssid>/enabled` - wifi enabled status, e.g. `{"val":true}`. Retained.
 * `<name>/status/clientCount` - number of clients in all wifi networks, e.g. `{"val":12}`. Retained.
+* `<name>/status/device/<device>/led` - status of a device led, e.g. `{"val":"on"}` Retained.
 * `<name>/connected` - `1` if connected to mqtt broker, `2` if connected to UniFi Controller, `0` on last will. 
 Retained.
 
