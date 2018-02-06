@@ -264,22 +264,18 @@ unifi.on('*.connected', data => {
 
 unifi.on('*.roam', data => {
     log.debug('unifi <', data);
-
 });
 
 unifi.on('*.roam_radio', data => {
     log.debug('unifi <', data);
-
 });
 
 unifi.on('ap.detect_rogue_ap', data => {
     log.debug('unifi <', data);
-
 });
 
 unifi.on('ad.update_available', data => {
     log.debug('unifi <', data);
-
 });
 
 function wifiInfoPub() {
