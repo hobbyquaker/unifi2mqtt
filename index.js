@@ -8,23 +8,12 @@ const Mqtt = require('mqtt');
 const config = require('./config.js');
 const pkg = require('./package.json');
 
-let mqttConnected;
+process.title = pkg.name;
 
 log.setLevel(config.verbosity);
-
 log.info(pkg.name + ' ' + pkg.version + ' starting');
-log.info('mqtt trying to connect', config.url);
 
-const mqtt = Mqtt.connect(config.url, {will: {topic: config.name + '/connected', payload: '0', retain: true}});
-
-function mqttPub(topic, payload, options) {
-    if (typeof payload === 'object') {
-        payload = JSON.stringify(payload);
-    }
-    log.debug('mqtt >', topic, payload);
-    mqtt.publish(topic, payload, options);
-}
-
+let mqttConnected;
 let unifiConnected = false;
 let retainedClientsTimeout;
 let numClients = {};
@@ -33,6 +22,21 @@ const idWifi = {};
 const dataWifi = {};
 const idDevice = {};
 const dataDevice = {};
+
+log.info('mqtt trying to connect', config.url);
+
+const mqtt = Mqtt.connect(config.url, {
+    will: {topic: config.name + '/connected', payload: '0', retain: true},
+    rejectUnauthorized: !config.insecure
+});
+
+function mqttPub(topic, payload, options) {
+    if (typeof payload === 'object') {
+        payload = JSON.stringify(payload);
+    }
+    log.debug('mqtt >', topic, payload);
+    mqtt.publish(topic, payload, options);
+}
 
 mqtt.on('connect', () => {
     log.info('mqtt connected', config.url);
@@ -121,7 +125,7 @@ mqtt.on('message', (topic, payload) => {
         }
         if (idDevice[parts[3]]) {
             log.debug('unifi > rest/device/' + idDevice[parts[3]], {led_override: val});
-            unifi.put('rest/device/' + idDevice[parts[3]], {led_override: val});
+            unifi.put('rest/device/' + idDevice[parts[3]], {led_override: val}).then(getDevices);
         } else {
             log.warn('unknown device', parts[3]);
         }
@@ -129,7 +133,9 @@ mqtt.on('message', (topic, payload) => {
         // Set wireless network enable/disable
         if (idWifi[parts[3]]) {
             log.debug('unifi > upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))});
-            unifi.post('upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))});
+            unifi.post('upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))}).then(() => {
+                setTimeout(getWifiNetworks, 5000);
+            });
         } else {
             log.warn('unknown wireless network', parts[3]);
         }
@@ -166,6 +172,7 @@ function getWifiNetworks() {
             res.data.forEach(wifi => {
                 dataWifi[wifi._id] = wifi;
                 idWifi[wifi.name] = wifi._id;
+                mqttPub(config.name + '/status/wifi/' + wifi.name + '/enabled', {val: wifi.enabled}, {retain: true});
             });
             log.debug('unifi got', res.data.length, 'wifi networks');
             resolve();
@@ -180,6 +187,7 @@ function getDevices() {
             res.data.forEach(dev => {
                 dataDevice[dev._id] = dev;
                 idDevice[dev.name] = dev._id;
+                mqttPub(config.name + '/status/device/' + dev.name + '/led', {val: dev.led_override}, {retain: true});
             });
             log.debug('unifi got', res.data.length, 'devices');
             resolve();
@@ -231,6 +239,7 @@ unifi.on('ctrl.error', err => {
 });
 
 unifi.on('*.disconnected', data => {
+    log.debug('unifi <', data);
     if (numClients[data.ssid]) {
         numClients[data.ssid] -= 1;
     } else {
@@ -242,6 +251,7 @@ unifi.on('*.disconnected', data => {
 });
 
 unifi.on('*.connected', data => {
+    log.debug('unifi <', data);
     if (numClients[data.ssid]) {
         numClients[data.ssid] += 1;
     } else {
@@ -250,6 +260,26 @@ unifi.on('*.connected', data => {
     wifiInfoPub();
     mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'connected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
     mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.hostname].join('/'), {val: true, mac: data.user, ts: data.time}, {retain: true});
+});
+
+unifi.on('*.roam', data => {
+    log.debug('unifi <', data);
+
+});
+
+unifi.on('*.roam_radio', data => {
+    log.debug('unifi <', data);
+
+});
+
+unifi.on('ap.detect_rogue_ap', data => {
+    log.debug('unifi <', data);
+
+});
+
+unifi.on('ad.update_available', data => {
+    log.debug('unifi <', data);
+
 });
 
 function wifiInfoPub() {
