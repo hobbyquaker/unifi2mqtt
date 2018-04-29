@@ -6,4 +6,4 @@ RUN npm install
 COPY . .
 
 CMD node index.js
-#CMD env
+#pass arguments like docker run -e "insecure=true" -e "unifi-password=supersekrit" ...
