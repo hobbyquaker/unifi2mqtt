@@ -24,21 +24,21 @@
     "ubiquiti",
     "clients"
   ],
-  "author": "Sebastian Raff <hobbyquaker@gmail.com> (https://hobbyquaker.github.io)",
+  "author": "Sebastian Raff <hobbyquaker@gmail.com> (https://github.com/hobbyquaker)",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/hobbyquaker/unifi2mqtt/issues"
   },
   "homepage": "https://github.com/hobbyquaker/unifi2mqtt",
   "dependencies": {
-    "mqtt": "^2.15.1",
+    "mqtt": "^2.18.3",
     "ubnt-unifi": "^1.0.0",
     "yalm": "^4.1.0",
-    "yargs": "^11.0.0"
+    "yargs": "^12.0.1"
   },
   "devDependencies": {
     "camo-purge": "latest",
-    "xo": "latest"
+    "xo": "^0.21.1"
   },
   "xo": {
     "space": 4
