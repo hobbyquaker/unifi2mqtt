@@ -66,7 +66,7 @@ function parsePayload(payload) {
     try {
         val = JSON.parse(payload);
         if (typeof val.val !== 'undefined') {
-            val = val.val;
+            val = val.val; /* eslint-disable-line prefer-destructuring */
         }
     } catch (err) {
         if (val === 'true') {
@@ -144,7 +144,7 @@ mqtt.on('message', (topic, payload) => {
         clearTimeout(retainedClientsTimeout);
         retainedClientsTimeout = setTimeout(clientsReceived, 2000);
         try {
-            const val = JSON.parse(payload).val;
+            const {val} = JSON.parse(payload);
             if (val) {
                 if (retainedClients[parts[3]]) {
                     retainedClients[parts[3]].push(parts[5]);
