@@ -32,6 +32,7 @@ module.exports = require('yargs')
         w: 'default'
     })
     .demand('unifi-password')
+    .env()
     .version()
     .help('help')
     .argv;
