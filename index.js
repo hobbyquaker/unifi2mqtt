@@ -209,7 +209,7 @@ function getClients() {
             } else {
                 numClients[client.essid] = 1;
             }
-            mqttPub([config.name, 'status', 'wifi', client.essid, 'client', client.mac].join('/'), {val: true, name:client.name, hostname: client.hostname, ts: (new Date()).getTime()}, {retain: true});
+            mqttPub([config.name, 'status', 'wifi', client.essid, 'client', client.mac].join('/'), {val: true, name: client.name, hostname: client.hostname, ts: (new Date()).getTime()}, {retain: true});
             if (retainedClients[client.essid]) {
                 const index = retainedClients[client.essid].indexOf(client.mac);
                 if (index > -1) {
@@ -246,8 +246,8 @@ unifi.on('*.disconnected', data => {
         numClients[data.ssid] = 0;
     }
     wifiInfoPub();
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'disconnected'].join('/'), {val: data.user, name:data.name, hostname: data.hostname, ts: data.time});
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.user].join('/'), {val: false, name:data.name, hostname: data.hostname, ts: data.time}, {retain: true});
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'disconnected'].join('/'), {val: data.user, name: data.name, hostname: data.hostname, ts: data.time});
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.user].join('/'), {val: false, name: data.name, hostname: data.hostname, ts: data.time}, {retain: true});
 });
 
 unifi.on('*.connected', data => {
@@ -258,8 +258,8 @@ unifi.on('*.connected', data => {
         numClients[data.ssid] = 1;
     }
     wifiInfoPub();
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'connected'].join('/'), {val: data.user, name:data.name, hostname: data.hostname, ts: data.time});
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.user].join('/'), {val: true, name:data.name, hostname: data.hostname, ts: data.time}, {retain: true});
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'connected'].join('/'), {val: data.user, name: data.name, hostname: data.hostname, ts: data.time});
+    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.user].join('/'), {val: true, name: data.name, hostname: data.hostname, ts: data.time}, {retain: true});
 });
 
 unifi.on('*.roam', data => {
