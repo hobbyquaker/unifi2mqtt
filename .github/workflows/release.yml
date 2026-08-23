@@ -29,10 +29,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      # trusted publishing (OIDC) needs npm >= 11.5.1; node 22 bundles npm 10
+      - run: npm install -g npm@latest
       # idempotent so the workflow can be re-run (workflow_dispatch) for an already published tag
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           PKG=$(node -p "require('./package.json').name")
           VER=$(node -p "require('./package.json').version")
