@@ -1,2 +1,11 @@
 node_modules
-npm-debug.log
+.git
+.github
+*.md
+.editorconfig
+.prettierrc
+.prettierignore
+eslint.config.js
+test
+scripts
+deploy.sh

@@ -1,0 +1,85 @@
+{
+  "connected": {
+    "meta": {"rc": "ok", "message": "events"},
+    "data": [
+      {
+        "_id": "5f1a0000000000000000e001",
+        "key": "EVT_WU_Connected",
+        "subsystem": "wlan",
+        "user": "AA:BB:CC:DD:EE:04",
+        "hostname": "new-phone",
+        "ssid": "Home WiFi",
+        "ap": "78:8a:20:00:00:01",
+        "channel": 36,
+        "radio": "na",
+        "time": 1756200060000,
+        "datetime": "2026-08-26T10:41:00Z",
+        "msg": "User[aa:bb:cc:dd:ee:04] has connected to AP[78:8a:20:00:00:01] with SSID \"Home WiFi\" on \"channel 36(na)\""
+      }
+    ]
+  },
+  "disconnected": {
+    "meta": {"rc": "ok", "message": "events"},
+    "data": [
+      {
+        "key": "EVT_WU_Disconnected",
+        "subsystem": "wlan",
+        "user": "aa:bb:cc:dd:ee:01",
+        "hostname": "bastis-iphone",
+        "ssid": "Home WiFi",
+        "ap": "78:8a:20:00:00:01",
+        "duration": 3600,
+        "bytes": 12345,
+        "time": 1756200120000,
+        "datetime": "2026-08-26T10:42:00Z",
+        "msg": "User[aa:bb:cc:dd:ee:01] disconnected from \"Home WiFi\" (1h 0m connected, 12.06K bytes, last AP[78:8a:20:00:00:01])"
+      }
+    ]
+  },
+  "roam": {
+    "meta": {"rc": "ok", "message": "events"},
+    "data": [
+      {
+        "key": "EVT_WU_Roam",
+        "subsystem": "wlan",
+        "user": "aa:bb:cc:dd:ee:01",
+        "ssid": "Home WiFi",
+        "ap_from": "78:8a:20:00:00:01",
+        "ap_to": "78:8a:20:00:00:03",
+        "ap": "78:8a:20:00:00:03",
+        "time": 1756200180000,
+        "msg": "User[aa:bb:cc:dd:ee:01] roams from AP[78:8a:20:00:00:01] to AP[78:8a:20:00:00:03]"
+      }
+    ]
+  },
+  "lan_guest": {
+    "meta": {"rc": "ok", "message": "events"},
+    "data": [
+      {
+        "key": "EVT_LG_Connected",
+        "subsystem": "lan",
+        "guest": "aa:bb:cc:dd:ee:05",
+        "hostname": "visitor-pc",
+        "time": 1756200240000,
+        "msg": "Guest[aa:bb:cc:dd:ee:05] has connected to the LAN"
+      }
+    ]
+  },
+  "device": {
+    "meta": {"rc": "ok", "message": "events"},
+    "data": [
+      {
+        "key": "EVT_AP_Restarted",
+        "subsystem": "wlan",
+        "ap": "78:8a:20:00:00:01",
+        "ap_name": "AP Living Room",
+        "time": 1756200300000,
+        "msg": "AP[78:8a:20:00:00:01] was restarted"
+      }
+    ]
+  },
+  "sync": {
+    "meta": {"rc": "ok", "message": "sta:sync"},
+    "data": [{"mac": "aa:bb:cc:dd:ee:01", "ip": "192.168.1.101"}]
+  }
+}

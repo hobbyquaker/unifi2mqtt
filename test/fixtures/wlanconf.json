@@ -1,0 +1,16 @@
+[
+  {
+    "_id": "5f1a0000000000000000w001",
+    "name": "Home WiFi",
+    "enabled": true,
+    "is_guest": false,
+    "security": "wpapsk"
+  },
+  {
+    "_id": "5f1a0000000000000000w002",
+    "name": "Guests",
+    "enabled": false,
+    "is_guest": true,
+    "security": "open"
+  }
+]

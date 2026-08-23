@@ -1,291 +1,265 @@
 #!/usr/bin/env node
 
-/* eslint-disable camelcase */
+import WebSocket from 'ws';
+import {createAdapter, toBoolean} from 'mqtt-interfaces-core';
+import config from './config.js';
+import pkg from './package.json' with {type: 'json'};
+import {handle as handleInstall} from './lib/install.js';
+import {UnifiController} from './lib/unifi.js';
+import {EventStream} from './lib/events.js';
+import {NetworkState} from './lib/model.js';
+import {discoveryModel} from './lib/hadiscovery.js';
 
-const Unifi = require('ubnt-unifi');
-const log = require('yalm');
-const Mqtt = require('mqtt');
-const config = require('./config.js');
-const pkg = require('./package.json');
+handleInstall(config);
 
-process.title = pkg.name;
+const RETRY_INTERVAL = 10000;
 
-log.setLevel(config.verbosity);
-log.info(pkg.name + ' ' + pkg.version + ' starting');
+const adapter = createAdapter({
+    pkg,
+    config,
+    deviceLabel: 'unifi',
+    info: () => ({
+        controller: controller.url,
+        site: config.site,
+        mode: controller.mode || config.mode,
+        events: config.events ? Boolean(stream && stream.connected) : false,
+        pollInterval: config.pollInterval,
+    }),
+    discovery: () =>
+        discoveryModel({
+            name: config.name,
+            site: config.site,
+            clients: state.clientList(),
+            devices: state.deviceList(),
+            wlans: state.wlanList(),
+            jsonPayloads: config.jsonPayloads,
+            haClients: config.haClients,
+        }),
+    onSet: handleSet,
+    onShutdown: shutdownDevice,
+});
+const {log, pubStatus, clearStatus, setDeviceConnected} = adapter;
 
-let mqttConnected;
-let unifiConnected = false;
-let retainedClientsTimeout;
-let numClients = {};
-const retainedClients = {};
-const idWifi = {};
-const dataWifi = {};
-const idDevice = {};
-const dataDevice = {};
-
-log.info('mqtt trying to connect', config.url);
-
-const mqtt = Mqtt.connect(config.url, {
-    will: {topic: config.name + '/connected', payload: '0', retain: true},
-    rejectUnauthorized: !config.insecure
+const controller = new UnifiController({
+    url: config.controller,
+    username: config.username,
+    password: config.password,
+    site: config.site,
+    mode: config.mode,
+    insecure: config.insecure,
+    log,
 });
 
-function mqttPub(topic, payload, options) {
-    if (typeof payload === 'object') {
-        payload = JSON.stringify(payload);
+const state = new NetworkState({
+    clientKey: config.clientKey,
+    clients: config.clients,
+    presenceTimeout: config.presenceTimeout,
+});
+
+let stream = null;
+let pollTimer = null;
+let expiryTimer = null;
+let discoveryTimer = null;
+let polling = false;
+let lastError = null;
+
+/*
+ * publishing
+ */
+
+function apply({changes, clear, discovery}) {
+    for (const item of clear) {
+        clearStatus(item);
     }
-    log.debug('mqtt >', topic, payload);
-    mqtt.publish(topic, payload, options);
-}
-
-mqtt.on('connect', () => {
-    log.info('mqtt connected', config.url);
-    mqttPub(config.name + '/connected', unifiConnected ? '2' : '1', {retain: true});
-
-    log.info('mqtt subscribe', config.name + '/set/#');
-    mqtt.subscribe(config.name + '/set/#');
-
-    log.info('mqtt subscribe', config.name + '/status/wifi/+/client/+');
-    mqtt.subscribe(config.name + '/status/wifi/+/client/+');
-    retainedClientsTimeout = setTimeout(clientsReceived, 2000);
-});
-
-mqtt.on('close', () => {
-    if (mqttConnected) {
-        mqttConnected = false;
-        log.info('mqtt closed ' + config.url);
+    for (const {item, value, retain} of changes) {
+        pubStatus(item, value, {retain: retain !== false});
     }
-});
-
-mqtt.on('error', err => {
-    log.error('mqtt', err);
-});
-
-function parsePayload(payload) {
-    let val;
-    try {
-        val = JSON.parse(payload);
-        if (typeof val.val !== 'undefined') {
-            val = val.val; /* eslint-disable-line prefer-destructuring */
-        }
-    } catch (err) {
-        if (val === 'true') {
-            val = true;
-        } else if (val === 'false') {
-            val = false;
-        } else if (isNaN(payload)) {
-            val = payload;
-        } else {
-            val = parseFloat(payload);
-        }
+    if (discovery) {
+        scheduleDiscovery();
     }
-    return val;
+    scheduleExpiry();
 }
 
-function unifiConnect(connected) {
-    if (unifiConnected !== connected) {
-        unifiConnected = connected;
-        mqttPub(config.name + '/connected', unifiConnected ? '2' : '1', {retain: true});
-        if (unifiConnected) {
-            log.info('unifi connected');
-            getWifiNetworks()
-                .then(getDevices)
-                .then(getClients);
-        } else {
-            log.info('unifi disconnected');
-        }
-    }
-}
-
-log.info('trying to connect https://' + config.unifiHost + ':' + config.unifiPort);
-const unifi = new Unifi({
-    host: config.unifiHost,
-    port: config.unifiPort,
-    username: config.unifiUser,
-    password: config.unifiPassword,
-    site: config.unifiSite,
-    insecure: config.insecure
-});
-
-mqtt.on('message', (topic, payload) => {
-    payload = payload.toString();
-    log.debug('mqtt <', topic, payload);
-
-    const parts = topic.split('/');
-
-    if (parts[1] === 'set' && parts[2] === 'device' && parts[4] === 'led') {
-        // Set device led override mode
-        let val = parsePayload(payload);
-        if (val === 'on' || val === true || ((typeof val === 'number') && val)) {
-            val = 'on';
-        } else if (val === 'off' || val === false || ((typeof val === 'number') && !val)) {
-            val = 'off';
-        } else {
-            val = 'default';
-        }
-        if (idDevice[parts[3]]) {
-            log.debug('unifi > rest/device/' + idDevice[parts[3]], {led_override: val});
-            unifi.put('rest/device/' + idDevice[parts[3]], {led_override: val}).then(getDevices);
-        } else {
-            log.warn('unknown device', parts[3]);
-        }
-    } else if (parts[1] === 'set' && parts[2] === 'wifi' && parts[4] === 'enabled') {
-        // Set wireless network enable/disable
-        if (idWifi[parts[3]]) {
-            log.debug('unifi > upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))});
-            unifi.post('upd/wlanconf/' + idWifi[parts[3]], {enabled: Boolean(parsePayload(payload))}).then(() => {
-                setTimeout(getWifiNetworks, 5000);
-            });
-        } else {
-            log.warn('unknown wireless network', parts[3]);
-        }
-    } else if (parts[1] === 'status' && parts[2] === 'wifi' && parts[4] === 'client') {
-        // Retained client status
-        clearTimeout(retainedClientsTimeout);
-        retainedClientsTimeout = setTimeout(clientsReceived, 2000);
-        try {
-            const {val} = JSON.parse(payload);
-            if (val) {
-                if (retainedClients[parts[3]]) {
-                    retainedClients[parts[3]].push(parts[5]);
-                } else {
-                    retainedClients[parts[3]] = [parts[5]];
-                }
-            }
-        } catch (err) {
-            log.error(topic, payload, err);
-        }
-    }
-});
-
-function clientsReceived() {
-    log.info('retained clients received');
-    log.info('mqtt unsubscribe', config.name + '/status/wifi/+/client/+');
-    mqtt.unsubscribe(config.name + '/status/wifi/+/client/+');
-    mqttConnected = true;
-}
-
-function getWifiNetworks() {
-    return new Promise(resolve => {
-        log.debug('unifi > rest/wlanconf');
-        unifi.get('rest/wlanconf').then(res => {
-            res.data.forEach(wifi => {
-                dataWifi[wifi._id] = wifi;
-                idWifi[wifi.name] = wifi._id;
-                mqttPub(config.name + '/status/wifi/' + wifi.name + '/enabled', {val: wifi.enabled}, {retain: true});
-            });
-            log.debug('unifi got', res.data.length, 'wifi networks');
-            resolve();
-        });
-    });
-}
-
-function getDevices() {
-    return new Promise(resolve => {
-        log.debug('unifi > stat/device');
-        unifi.get('stat/device').then(res => {
-            res.data.forEach(dev => {
-                dataDevice[dev._id] = dev;
-                idDevice[dev.name] = dev._id;
-                mqttPub(config.name + '/status/device/' + dev.name + '/led', {val: dev.led_override}, {retain: true});
-            });
-            log.debug('unifi got', res.data.length, 'devices');
-            resolve();
-        });
-    });
-}
-
-function getClients() {
-    if (!mqttConnected) {
-        setTimeout(getClients, 1000);
+function scheduleDiscovery() {
+    adapter.markDiscoveryDirty();
+    if (discoveryTimer) {
         return;
     }
-    numClients = {};
-    log.info('unifi > stat/sta');
-    unifi.get('stat/sta').then(clients => {
-        clients.data.forEach(client => {
-            if (numClients[client.essid]) {
-                numClients[client.essid] += 1;
-            } else {
-                numClients[client.essid] = 1;
-            }
-            mqttPub([config.name, 'status', 'wifi', client.essid, 'client', client.hostname].join('/'), {val: true, mac: client.mac, ts: (new Date()).getTime()}, {retain: true});
-            if (retainedClients[client.essid]) {
-                const index = retainedClients[client.essid].indexOf(client.hostname);
-                if (index > -1) {
-                    retainedClients[client.essid].splice(index, 1);
-                }
-            }
-        });
-        Object.keys(retainedClients).forEach(essid => {
-            retainedClients[essid].forEach(hostname => {
-                mqttPub([config.name, 'status', 'wifi', essid, 'client', hostname].join('/'), {val: false, ts: (new Date()).getTime()}, {retain: true});
-            });
-        });
-        wifiInfoPub();
+    discoveryTimer = setTimeout(() => {
+        discoveryTimer = null;
+        adapter.publishDiscovery();
+    }, 1000);
+}
+
+function scheduleExpiry() {
+    if (expiryTimer) {
+        clearTimeout(expiryTimer);
+        expiryTimer = null;
+    }
+    const due = state.nextExpiry();
+    if (due === null) {
+        return;
+    }
+    expiryTimer = setTimeout(() => {
+        expiryTimer = null;
+        apply(state.expire());
+    }, due + 50);
+}
+
+/*
+ * polling
+ */
+
+async function poll() {
+    if (polling || adapter.shuttingDown) {
+        return;
+    }
+    polling = true;
+    try {
+        const [devices, wlans, clients] = await Promise.all([
+            controller.devices(),
+            controller.wlans(),
+            controller.clients(),
+        ]);
+        log.debug('unifi got', devices.length, 'devices,', wlans.length, 'wlans,', clients.length, 'clients');
+        apply(state.applyDevices(devices));
+        apply(state.applyWlans(wlans));
+        apply(state.applyClients(clients));
+        if (!adapter.deviceConnected) {
+            log.info('unifi controller', controller.url, 'connected');
+        }
+        lastError = null;
+        setDeviceConnected(true);
+        adapter.publishInfo();
+        if (stream && !stream.connected) {
+            stream.connect();
+        }
+    } catch (err) {
+        const message = (err && err.message) || String(err);
+        if (message !== lastError) {
+            log.warn('unifi controller', controller.url, 'poll failed:', message);
+            lastError = message;
+        } else {
+            log.debug('unifi poll failed again:', message);
+        }
+        if (adapter.deviceConnected) {
+            log.info('unifi controller', controller.url, 'disconnected');
+        }
+        setDeviceConnected(false);
+    } finally {
+        polling = false;
+        schedulePoll();
+    }
+}
+
+function schedulePoll() {
+    if (adapter.shuttingDown) {
+        return;
+    }
+    if (pollTimer) {
+        clearTimeout(pollTimer);
+    }
+    const interval = config.pollInterval * 1000;
+    const delay = adapter.deviceConnected ? interval : Math.min(interval, RETRY_INTERVAL);
+    pollTimer = setTimeout(poll, delay);
+}
+
+async function refreshDevices() {
+    apply(state.applyDevices(await controller.devices()));
+}
+
+async function refreshWlans() {
+    apply(state.applyWlans(await controller.wlans()));
+}
+
+/*
+ * events
+ */
+
+if (config.events) {
+    stream = new EventStream({controller, log, WebSocket});
+    stream.on('open', () => adapter.publishInfo());
+    stream.on('close', () => adapter.publishInfo());
+    stream.on('error', (err) => log.warn('unifi websocket', err.message || err));
+    stream.on('message', (msg) => {
+        if (config.publishRaw) {
+            adapter.publish(adapter.topic('raw'), JSON.stringify(msg.raw));
+        }
+    });
+    stream.on('event', (evt) => {
+        log.debug('unifi event', evt.key, evt.mac || '', evt.msg || '');
+        if (evt.kind === 'client') {
+            apply(state.applyEvent(evt));
+        } else if (evt.kind === 'device') {
+            refreshDevices().catch((err) => log.debug('unifi device refresh failed:', err.message));
+        }
     });
 }
 
-unifi.on('ctrl.connect', () => {
-    unifiConnect(true);
-});
+/*
+ * set handling
+ */
 
-unifi.on('ctrl.disconnect', () => {
-    unifiConnect(false);
-});
-
-unifi.on('ctrl.error', err => {
-    log.error(err.message);
-});
-
-unifi.on('*.disconnected', data => {
-    log.debug('unifi <', data);
-    if (numClients[data.ssid]) {
-        numClients[data.ssid] -= 1;
-    } else {
-        numClients[data.ssid] = 0;
+async function handleSet(parts, value, topic) {
+    if (value === undefined) {
+        log.warn('mqtt ignoring empty payload on', topic);
+        return;
     }
-    wifiInfoPub();
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'disconnected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.hostname].join('/'), {val: false, mac: data.user, ts: data.time}, {retain: true});
-});
+    const [kind, key, item] = parts;
 
-unifi.on('*.connected', data => {
-    log.debug('unifi <', data);
-    if (numClients[data.ssid]) {
-        numClients[data.ssid] += 1;
-    } else {
-        numClients[data.ssid] = 1;
+    if (kind === 'wifi' && parts.length === 3 && item === 'enabled') {
+        const wlan = state.wlanByKey(key);
+        if (!wlan) {
+            throw new Error(`unknown wlan ${key}`);
+        }
+        const enabled = toBoolean(value);
+        if (enabled === undefined) {
+            throw new Error(`not a boolean: ${value}`);
+        }
+        log.info('unifi wlan', wlan.name, enabled ? 'enable' : 'disable');
+        await controller.setWlanEnabled(wlan.id, enabled);
+        await refreshWlans();
+        return;
     }
-    wifiInfoPub();
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'event', 'connected'].join('/'), {val: data.hostname, mac: data.user, ts: data.time});
-    mqttPub([config.name, 'status', 'wifi', data.ssid, 'client', data.hostname].join('/'), {val: true, mac: data.user, ts: data.time}, {retain: true});
-});
 
-unifi.on('*.roam', data => {
-    log.debug('unifi <', data);
-});
+    if (kind === 'device' && parts.length === 3 && item === 'led') {
+        const device = state.deviceByKey(key);
+        if (!device) {
+            throw new Error(`unknown device ${key}`);
+        }
+        let mode = String(value).trim().toLowerCase();
+        const asBool = toBoolean(value);
+        if (asBool !== undefined) {
+            mode = asBool ? 'on' : 'off';
+        }
+        if (!['on', 'off', 'default'].includes(mode)) {
+            throw new Error(`led mode must be on, off or default: ${value}`);
+        }
+        log.info('unifi device', device.name, 'led', mode);
+        await controller.setDeviceLed(device.id, mode);
+        await refreshDevices();
+        return;
+    }
 
-unifi.on('*.roam_radio', data => {
-    log.debug('unifi <', data);
-});
-
-unifi.on('ap.detect_rogue_ap', data => {
-    log.debug('unifi <', data);
-});
-
-unifi.on('ad.update_available', data => {
-    log.debug('unifi <', data);
-});
-
-function wifiInfoPub() {
-    let sum = 0;
-    const ts = (new Date()).getTime();
-    Object.keys(idWifi).forEach(ssid => {
-        numClients[ssid] = numClients[ssid] || 0;
-        sum += numClients[ssid];
-        mqttPub([config.name, 'status', 'wifi', ssid, 'clientCount'].join('/'), {val: numClients[ssid], ts}, {retain: true});
-        mqttPub([config.name, 'status', 'wifi', ssid, 'enabled'].join('/'), {val: dataWifi[idWifi[ssid]].enabled, ts}, {retain: true});
-    });
-    mqttPub([config.name, 'status', 'clientCount'].join('/'), {val: sum, ts}, {retain: true});
+    throw new Error(`unknown item ${parts.join('/')}`);
 }
+
+/*
+ * lifecycle
+ */
+
+async function shutdownDevice() {
+    for (const t of [pollTimer, expiryTimer, discoveryTimer]) {
+        if (t) {
+            clearTimeout(t);
+        }
+    }
+    if (stream) {
+        stream.stop();
+    }
+    await controller.logout();
+}
+
+adapter.start();
+log.info('unifi controller', controller.url, 'site', config.site, '- trying to connect');
+poll();

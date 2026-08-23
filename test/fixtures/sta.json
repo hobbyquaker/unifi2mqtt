@@ -1,0 +1,42 @@
+[
+  {
+    "_id": "5f1a0000000000000000a001",
+    "mac": "AA:BB:CC:DD:EE:01",
+    "hostname": "bastis-iphone",
+    "name": "Basti iPhone",
+    "ip": "192.168.1.101",
+    "is_wired": false,
+    "is_guest": false,
+    "essid": "Home WiFi",
+    "ap_mac": "78:8a:20:00:00:01",
+    "network": "LAN",
+    "signal": -55,
+    "rssi": 40,
+    "first_seen": 1700000000,
+    "last_seen": 1756200000,
+    "oui": "Apple"
+  },
+  {
+    "_id": "5f1a0000000000000000a002",
+    "mac": "aa:bb:cc:dd:ee:02",
+    "hostname": "printer",
+    "ip": "192.168.1.50",
+    "is_wired": true,
+    "sw_mac": "78:8a:20:00:00:02",
+    "sw_port": 3,
+    "network": "LAN",
+    "last_seen": 1756200000
+  },
+  {
+    "_id": "5f1a0000000000000000a003",
+    "mac": "aa:bb:cc:dd:ee:03",
+    "hostname": "guest-laptop",
+    "ip": "192.168.5.20",
+    "is_wired": false,
+    "is_guest": true,
+    "essid": "Guests",
+    "ap_mac": "78:8a:20:00:00:01",
+    "network": "Guest",
+    "last_seen": 1756200000
+  }
+]

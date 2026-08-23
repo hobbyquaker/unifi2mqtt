@@ -1,0 +1,28 @@
+[
+  {
+    "_id": "5f1a0000000000000000d001",
+    "mac": "78:8a:20:00:00:01",
+    "name": "AP Living Room",
+    "model": "U6LR",
+    "type": "uap",
+    "ip": "192.168.1.10",
+    "version": "6.6.77.15402",
+    "state": 1,
+    "led_override": "default",
+    "num_sta": 2,
+    "adopted": true
+  },
+  {
+    "_id": "5f1a0000000000000000d002",
+    "mac": "78:8a:20:00:00:02",
+    "name": "Switch Office",
+    "model": "USL8LP",
+    "type": "usw",
+    "ip": "192.168.1.11",
+    "version": "6.6.77.15402",
+    "state": 0,
+    "led_override": "off",
+    "num_sta": 1,
+    "adopted": true
+  }
+]

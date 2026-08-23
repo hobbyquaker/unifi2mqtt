@@ -1,46 +1,68 @@
 {
   "name": "unifi2mqtt",
-  "version": "1.1.0",
-  "description": "Connect Ubiquiti UniFi controller to MQTT",
+  "version": "2.0.0",
+  "description": "Interface between Ubiquiti UniFi network controllers and MQTT (client presence, devices, WLANs), with Home Assistant discovery",
+  "type": "module",
   "main": "index.js",
   "bin": {
     "unifi2mqtt": "index.js"
   },
   "preferGlobal": true,
+  "files": [
+    "index.js",
+    "config.js",
+    "lib/"
+  ],
   "engines": {
-    "node": ">=6.0.0"
+    "node": "^20.19 || ^22.12 || >=24"
   },
   "scripts": {
-    "test": "camo-purge ; xo"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hobbyquaker/unifi2mqtt"
+    "start": "node index.js",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write . && eslint --fix .",
+    "test": "node --test",
+    "test:watch": "node --test --watch",
+    "deploy": "bash deploy.sh"
   },
   "keywords": [
-    "mqtt",
-    "smarthome",
     "unifi",
     "ubiquiti",
-    "clients"
+    "presence",
+    "device-tracker",
+    "mqtt",
+    "smarthome",
+    "mqtt-smarthome",
+    "mqtt-interfaces",
+    "home-automation",
+    "home-assistant"
   ],
-  "author": "Sebastian Raff <hobbyquaker@gmail.com> (https://github.com/hobbyquaker)",
+  "author": "Sebastian 'Hobbyquaker' Raff <hobbyquaker@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hobbyquaker/unifi2mqtt.git"
+  },
   "bugs": {
     "url": "https://github.com/hobbyquaker/unifi2mqtt/issues"
   },
-  "homepage": "https://github.com/hobbyquaker/unifi2mqtt",
+  "homepage": "https://github.com/hobbyquaker/unifi2mqtt#readme",
+  "mqttInterfaces": {
+    "spec": "2.0",
+    "envPrefix": "UNIFI2MQTT",
+    "needs": [
+      "network-host"
+    ],
+    "serviceExtra": []
+  },
   "dependencies": {
-    "mqtt": "^2.18.3",
-    "ubnt-unifi": "^1.0.0",
-    "yalm": "^4.1.0",
-    "yargs": "^12.0.1"
+    "mqtt-interfaces-core": "^0.6.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
-    "camo-purge": "latest",
-    "xo": "^0.21.1"
-  },
-  "xo": {
-    "space": 4
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.0.0"
   }
 }
