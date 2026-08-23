@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- `client/<key>/details` carries `band` (`2.4 GHz` / `5 GHz` / `6 GHz`, from the controller's `radio`) and `channel` (#1).
+- `set/device/<key>/provision` force-provisions a device — the controller sometimes leaves an AP behind after a WLAN change (#5).
+
 ## 2.0.0
 
 Complete rewrite on [mqtt-interfaces-core](https://github.com/hobbyquaker/mqtt-interfaces-core)

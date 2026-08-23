@@ -14,7 +14,9 @@
     "rssi": 40,
     "first_seen": 1700000000,
     "last_seen": 1756200000,
-    "oui": "Apple"
+    "oui": "Apple",
+    "radio": "na",
+    "channel": 36
   },
   {
     "_id": "5f1a0000000000000000a002",

@@ -135,20 +135,20 @@ Retained status reports (except events), published after every poll and instantl
 events — only when the value changed. Every status is `{"val": <value>, "ts": <ms received>,
 "lc": <ms last changed>}`; with `--no-json-payloads` the plain value (objects as JSON).
 
-| item                       | type   | notes                                                                                                                                             |
-| -------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `client/<key>/present`     | bool   | `true` while the controller lists the client (or a connect event arrived), `false` after a disconnect or a poll without it (see below)            |
-| `client/<key>/details`     | object | `{mac, name, hostname, ip, wired, ssid, ap, network}` — `ap` is the access point / switch name, `null` fields are unknown                         |
-| `event/client`             | object | **not retained**: `{type, client, mac, hostname, ssid, ap, wired, guest, time, msg}`; `type` is `connected`, `disconnected`, `roam`, `roam_radio` |
-| `client_count`             | int    | clients present, all networks                                                                                                                     |
-| `client_count/wireless`    | int    | wireless clients present                                                                                                                          |
-| `client_count/wired`       | int    | wired clients present                                                                                                                             |
-| `wifi/<ssid>/enabled`      | bool   | WLAN enabled — settable                                                                                                                           |
-| `wifi/<ssid>/client_count` | int    | clients on this SSID                                                                                                                              |
-| `device/<key>/online`      | bool   | access point / switch / gateway is connected to the controller                                                                                    |
-| `device/<key>/led`         | string | `on`, `off` or `default` (site setting) — settable                                                                                                |
-| `device/<key>/clients`     | int    | clients on this device                                                                                                                            |
-| `device/<key>/details`     | object | `{mac, name, model, type, ip, version}`                                                                                                           |
+| item                       | type   | notes                                                                                                                                                                          |
+| -------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `client/<key>/present`     | bool   | `true` while the controller lists the client (or a connect event arrived), `false` after a disconnect or a poll without it (see below)                                         |
+| `client/<key>/details`     | object | `{mac, name, hostname, ip, wired, ssid, band, channel, ap, network}` — `band` is `2.4 GHz` / `5 GHz` / `6 GHz`, `ap` the access point / switch name, `null` fields are unknown |
+| `event/client`             | object | **not retained**: `{type, client, mac, hostname, ssid, ap, wired, guest, time, msg}`; `type` is `connected`, `disconnected`, `roam`, `roam_radio`                              |
+| `client_count`             | int    | clients present, all networks                                                                                                                                                  |
+| `client_count/wireless`    | int    | wireless clients present                                                                                                                                                       |
+| `client_count/wired`       | int    | wired clients present                                                                                                                                                          |
+| `wifi/<ssid>/enabled`      | bool   | WLAN enabled — settable                                                                                                                                                        |
+| `wifi/<ssid>/client_count` | int    | clients on this SSID                                                                                                                                                           |
+| `device/<key>/online`      | bool   | access point / switch / gateway is connected to the controller                                                                                                                 |
+| `device/<key>/led`         | string | `on`, `off` or `default` (site setting) — settable                                                                                                                             |
+| `device/<key>/clients`     | int    | clients on this device                                                                                                                                                         |
+| `device/<key>/details`     | object | `{mac, name, model, type, ip, version}`                                                                                                                                        |
 
 `<key>` of a client is, with the default `--client-key name`, the alias set in the controller,
 else the hostname, else the mac address (`--client-key hostname` / `mac` to choose). A client that
@@ -166,10 +166,11 @@ with the clients; device events (adopted, restarted, …) trigger an extra refre
 
 Change requests. Payload is a plain value or mqtt-smarthome style JSON (`{"val": true}`).
 
-| topic                            | payload                                         |
-| -------------------------------- | ----------------------------------------------- |
-| `<name>/set/wifi/<ssid>/enabled` | `true`/`false`, `1`/`0`, `on`/`off`             |
-| `<name>/set/device/<key>/led`    | `on`, `off`, `default` (booleans map to on/off) |
+| topic                               | payload                                                                                               |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `<name>/set/wifi/<ssid>/enabled`    | `true`/`false`, `1`/`0`, `on`/`off`                                                                   |
+| `<name>/set/device/<key>/led`       | `on`, `off`, `default` (booleans map to on/off)                                                       |
+| `<name>/set/device/<key>/provision` | any payload — force-provision the device (`cmd/devmgr`), for an AP that did not pick up a WLAN change |
 
 ```
 mosquitto_pub -t unifi/set/wifi/Guests/enabled -m false

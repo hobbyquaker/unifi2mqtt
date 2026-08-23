@@ -73,6 +73,9 @@ function fakeController({flavour = 'unifi-os', sessionTtl = Infinity, loginStatu
         if (site === 'default/rest/device/d1' && method === 'PUT') {
             return ok([{_id: 'd1', ...body}]);
         }
+        if (site === 'default/cmd/devmgr' && method === 'POST') {
+            return ok([]);
+        }
         if (site === 'default/stat/broken') {
             return {status: 200, headers: {}, body: JSON.stringify({meta: {rc: 'error', msg: 'api.err.NoSuchThing'}})};
         }
@@ -122,6 +125,11 @@ describe('UnifiController — UniFi OS', () => {
         assert.equal(put[0].headers['x-csrf-token'], 'csrf-os');
         assert.equal(put[1].path, '/proxy/network/api/s/default/rest/device/d1');
         assert.deepEqual(put[1].body, {led_override: 'off'});
+        await c.forceProvision('aa:bb:cc:dd:ee:10');
+        const post = calls.filter((x) => x.method === 'POST' && x.path.endsWith('/cmd/devmgr'));
+        assert.equal(post.length, 1);
+        assert.deepEqual(post[0].body, {cmd: 'force-provision', mac: 'aa:bb:cc:dd:ee:10'});
+        assert.equal(post[0].headers['x-csrf-token'], 'csrf-os');
         // GETs go without the token
         assert.equal(
             calls.find((x) => x.method === 'GET' && x.path.includes('/api/')),

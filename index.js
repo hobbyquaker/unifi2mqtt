@@ -241,6 +241,16 @@ async function handleSet(parts, value, topic) {
         return;
     }
 
+    if (kind === 'device' && parts.length === 3 && item === 'provision') {
+        const device = state.deviceByKey(key);
+        if (!device) {
+            throw new Error(`unknown device ${key}`);
+        }
+        log.info('unifi device', device.name, 'force-provision');
+        await controller.forceProvision(device.mac);
+        return;
+    }
+
     throw new Error(`unknown item ${parts.join('/')}`);
 }
 

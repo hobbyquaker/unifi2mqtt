@@ -69,12 +69,17 @@ describe('clients from stat/sta', () => {
             ip: '192.168.1.101',
             wired: false,
             ssid: 'Home WiFi',
+            band: '5 GHz',
+            channel: 36,
             ap: 'AP Living Room',
             network: 'LAN',
         });
         assert.equal(v['client/printer/present'], true);
         assert.deepEqual(v['client/printer/details'].wired, true);
         assert.equal(v['client/printer/details'].ssid, null);
+        assert.equal(v['client/printer/details'].band, null);
+        assert.equal(v['client/Basti_iPhone/details'].band, '5 GHz');
+        assert.equal(v['client/Basti_iPhone/details'].channel, 36);
         assert.equal(v['client/printer/details'].ap, 'Switch Office');
         assert.equal(v['client/guest-laptop/present'], true);
         assert.equal(first.clear.length, 0);
