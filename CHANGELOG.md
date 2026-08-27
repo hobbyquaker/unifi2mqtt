@@ -4,6 +4,9 @@
 
 - `client/<key>/details` carries `band` (`2.4 GHz` / `5 GHz` / `6 GHz`, from the controller's `radio`) and `channel` (#1).
 - `set/device/<key>/provision` force-provisions a device — the controller sometimes leaves an AP behind after a WLAN change (#5).
+- An expired session that the Network application reports as HTTP 200 with `meta.msg: api.err.LoginRequired` (not only as 401/403) is renewed transparently.
+- Login rejections are classified in the error message: invalid credentials (UniFi OS `403 AUTHENTICATION_FAILED_INVALID_CREDENTIALS`, legacy `api.err.Invalid`) with a hint that a local account is needed, and accounts with two-factor authentication (HTTP 499, `MFA_AUTH_REQUIRED` / `api.err.Ubic2faTokenRequired`), which cannot be used non-interactively.
+- The CSRF token is also taken from the `csrfToken` claim of the UniFi OS `TOKEN` cookie when the console sends no `x-csrf-token` header.
 
 ## 2.0.0
 

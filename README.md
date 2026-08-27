@@ -41,7 +41,7 @@ unifi2mqtt --controller https://192.168.1.1 --username unifi2mqtt --password s3c
 | option                               | default            | description                                                                                                    |
 | ------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `-c, --controller`                   |                    | controller url, required: `https://<console>` (UniFi OS) or `https://<host>:8443` (legacy controller)          |
-| `--username`, `--password`           |                    | controller credentials, required (a local account)                                                             |
+| `--username`, `--password`           |                    | controller credentials, required: a local account without 2fa (not a Ubiquiti sso login)                       |
 | `--site`                             | `default`          | site id (the part after `/site/` in the controller url; not the display name)                                  |
 | `--mode`                             | `auto`             | api flavour: `unifi-os` (UDM, UDR, UCK G2, Cloud Gateway) or `legacy` (self-hosted controller); `auto` detects |
 | `-k, --insecure`                     | off                | accept the controller's tls certificate without validation (consoles ship self-signed certificates)            |
@@ -205,7 +205,10 @@ the announcements on startup; `--ha-prefix` changes the discovery prefix.
 unifi2mqtt talks to the controller directly (no `node-unifi`, no `ubnt-unifi`): `POST
 /api/auth/login` + `/proxy/network/api/s/<site>/…` on UniFi OS, `POST /api/login` +
 `/api/s/<site>/…` on legacy controllers, the session cookie and CSRF token as the ui uses them,
-the event websocket at `…/wss/s/<site>/events`. `--mode auto` decides by `GET /`: a UniFi OS
+the event websocket at `…/wss/s/<site>/events`. The account must be a **local** controller user
+without two-factor authentication — a Ubiquiti SSO login does not work with the local login
+endpoints, and a 2FA challenge cannot be answered non-interactively; the adapter says so in the
+log instead of retrying. `--mode auto` decides by `GET /`: a UniFi OS
 console answers 200, a legacy controller redirects to `/manage`. `--mode unifi-os` / `legacy`
 overrides.
 

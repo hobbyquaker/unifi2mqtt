@@ -1,16 +1,25 @@
 import {test, describe} from 'node:test';
 import assert from 'node:assert/strict';
 
-import {UnifiController, UnifiError, normalizeControllerUrl} from '../lib/unifi.js';
+import {UnifiController, UnifiError, normalizeControllerUrl, csrfFromToken, loginFailure} from '../lib/unifi.js';
 import sta from './fixtures/sta.json' with {type: 'json'};
 
 const ok = (data, extra = {}) => ({status: 200, headers: {}, body: JSON.stringify({meta: {rc: 'ok'}, data}), ...extra});
+const b64url = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+/** A UniFi OS TOKEN cookie: a jwt whose payload carries the csrf token. */
+const JWT = `${b64url({alg: 'HS256', typ: 'JWT'})}.${b64url({userId: 'u1', csrfToken: 'csrf-from-jwt'})}.sig`;
 
 /**
  * A fake controller: answers by (method, path), records every request. `flavour` decides what
  * GET / and the login endpoints do.
  */
-function fakeController({flavour = 'unifi-os', sessionTtl = Infinity, loginStatus = 200} = {}) {
+function fakeController({
+    flavour = 'unifi-os',
+    sessionTtl = Infinity,
+    loginStatus = 200,
+    expiredStatus = 401, // 200: the Network application reports an expired session as rc error
+    csrfHeader = true, // false: UniFi OS without x-csrf-token header, csrf only inside the TOKEN jwt
+} = {}) {
     const calls = [];
     let requestsSinceLogin = 0;
     let loggedIn = false;
@@ -26,20 +35,33 @@ function fakeController({flavour = 'unifi-os', sessionTtl = Infinity, loginStatu
             if (flavour !== 'unifi-os') {
                 return {status: 404, headers: {}, body: 'not found'};
             }
+            if (loginStatus === 499) {
+                return {status: 499, headers: {}, body: '{"code":"MFA_AUTH_REQUIRED","message":"..."}'};
+            }
             if (loginStatus !== 200) {
-                return {status: loginStatus, headers: {}, body: '{"code":"AUTHENTICATION_FAILED"}'};
+                return {status: loginStatus, headers: {}, body: '{"code":"AUTHENTICATION_FAILED_INVALID_CREDENTIALS"}'};
             }
             loggedIn = true;
             requestsSinceLogin = 0;
             return {
                 status: 200,
-                headers: {'set-cookie': ['TOKEN=jwt123; Path=/; HttpOnly'], 'x-csrf-token': 'csrf-os'},
+                headers: {
+                    'set-cookie': [`TOKEN=${csrfHeader ? 'jwt123' : JWT}; Path=/; HttpOnly`],
+                    ...(csrfHeader && {'x-csrf-token': 'csrf-os'}),
+                },
                 body: JSON.stringify({unique_id: 'u1', username: body.username}),
             };
         }
         if (pathname === '/api/login') {
             if (flavour !== 'legacy') {
                 return {status: 404, headers: {}, body: ''};
+            }
+            if (loginStatus === 499) {
+                return {
+                    status: 499,
+                    headers: {},
+                    body: JSON.stringify({meta: {rc: 'error', msg: 'api.err.Ubic2faTokenRequired'}}),
+                };
             }
             if (loginStatus !== 200) {
                 return {status: 400, headers: {}, body: JSON.stringify({meta: {rc: 'error', msg: 'api.err.Invalid'}})};
@@ -56,7 +78,7 @@ function fakeController({flavour = 'unifi-os', sessionTtl = Infinity, loginStatu
         }
         if (!loggedIn || !headers.cookie || requestsSinceLogin >= sessionTtl) {
             return {
-                status: 401,
+                status: expiredStatus,
                 headers: {},
                 body: JSON.stringify({meta: {rc: 'error', msg: 'api.err.LoginRequired'}}),
             };
@@ -164,6 +186,49 @@ describe('UnifiController — UniFi OS', () => {
         assert.equal(c.loggedIn, false);
     });
 
+    test('403 AUTHENTICATION_FAILED_INVALID_CREDENTIALS is a credentials problem, no flavour retry', async () => {
+        const {transport, calls} = fakeController({loginStatus: 403});
+        const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
+        await assert.rejects(
+            () => c.clients(),
+            (err) =>
+                err instanceof UnifiError &&
+                err.status === 403 &&
+                /invalid credentials \(AUTHENTICATION_FAILED_INVALID_CREDENTIALS\).*local controller account/.test(
+                    err.message,
+                ),
+        );
+        assert.deepEqual(
+            calls.map((x) => x.path),
+            ['/', '/api/auth/login'],
+        );
+    });
+
+    test('an account with 2fa is reported as such (HTTP 499)', async () => {
+        const {transport} = fakeController({loginStatus: 499});
+        const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
+        await assert.rejects(() => c.clients(), /two-factor authentication enabled \(MFA_AUTH_REQUIRED\)/);
+    });
+
+    test('an expired session reported as HTTP 200 + api.err.LoginRequired is renewed too', async () => {
+        const {transport, calls} = fakeController({sessionTtl: 1, expiredStatus: 200});
+        const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
+        await c.clients();
+        const clients = await c.clients();
+        assert.equal(clients.length, sta.length);
+        assert.equal(calls.filter((x) => x.path === '/api/auth/login').length, 2);
+    });
+
+    test('csrf token is read from the TOKEN jwt when there is no x-csrf-token header', async () => {
+        const {transport, calls} = fakeController({csrfHeader: false});
+        const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
+        await c.setWlanEnabled('w1', false);
+        assert.equal(c.csrfToken, 'csrf-from-jwt');
+        assert.equal(calls.at(-1).headers['x-csrf-token'], 'csrf-from-jwt');
+        assert.equal(csrfFromToken('not-a-jwt'), null);
+        assert.equal(csrfFromToken('a.!!!.c'), null);
+    });
+
     test('api errors carry the controller message; logout clears the session', async () => {
         const {transport, calls} = fakeController();
         const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
@@ -211,6 +276,33 @@ describe('UnifiController — legacy controller', () => {
     test('rejected legacy login', async () => {
         const {transport} = fakeController({flavour: 'legacy', loginStatus: 400});
         const c = new UnifiController({url: 'https://unifi:8443', ...creds, request: transport});
-        await assert.rejects(() => c.clients(), /login failed: invalid credentials/);
+        await assert.rejects(() => c.clients(), /login failed: invalid credentials \(api\.err\.Invalid\)/);
+    });
+
+    test('legacy 2fa account', async () => {
+        const {transport} = fakeController({flavour: 'legacy', loginStatus: 499});
+        const c = new UnifiController({url: 'https://unifi:8443', ...creds, request: transport});
+        await assert.rejects(() => c.clients(), /two-factor authentication enabled \(api\.err\.Ubic2faTokenRequired\)/);
+    });
+
+    test('legacy session expiry as 200 + LoginRequired', async () => {
+        const {transport, calls} = fakeController({flavour: 'legacy', sessionTtl: 1, expiredStatus: 200});
+        const c = new UnifiController({url: 'https://unifi:8443', ...creds, request: transport});
+        await c.clients();
+        await c.clients();
+        assert.equal(calls.filter((x) => x.path === '/api/login').length, 2);
+    });
+});
+
+describe('loginFailure', () => {
+    test('classifies responses', () => {
+        assert.equal(loginFailure(200, {meta: {rc: 'ok'}}), null);
+        assert.equal(loginFailure(200, {unique_id: 'u1'}), null);
+        assert.match(loginFailure(200, {meta: {rc: 'error', msg: 'api.err.Invalid'}}), /invalid credentials/);
+        assert.match(loginFailure(401, undefined), /invalid credentials — a local/);
+        assert.match(loginFailure(403, {code: 'AUTHENTICATION_FAILED_INVALID_CREDENTIALS'}), /invalid credentials/);
+        assert.match(loginFailure(499, undefined), /two-factor/);
+        assert.match(loginFailure(400, {meta: {rc: 'error', msg: 'api.err.Ubic2faTokenRequired'}}), /two-factor/);
+        assert.equal(loginFailure(502, undefined), 'http 502');
     });
 });
