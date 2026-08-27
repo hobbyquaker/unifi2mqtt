@@ -218,8 +218,19 @@ overrides.
 | legacy self-hosted Network application (:8443)         | implemented after the 1.x adapter's api use, **not yet verified** |
 
 Run with `--verbosity debug` to see every request and websocket frame; ROADMAP.md lists the
-assumptions to check. Reports (controller model + version, what worked, debug log with
-credentials removed) are very welcome as GitHub issues.
+assumptions to check. The quickest way to help is a dump from your controller:
+
+```
+git clone https://github.com/hobbyquaker/unifi2mqtt && cd unifi2mqtt && npm ci
+node scripts/dump.js -c https://192.168.1.1 --username unifi2mqtt --password … -k --seconds 120
+```
+
+It logs in, fetches `stat/sta`, `stat/device`, `rest/wlanconf` and a few more endpoints, listens
+to the event websocket for `--seconds` (connect or disconnect a wifi client meanwhile) and writes
+everything to `./dump/`, **redacted**: macs keep their vendor part, public ips, names, SSIDs,
+serials and every secret are replaced consistently. Skim the files, then attach the directory to
+a GitHub issue together with the controller model and Network version. Nothing is written to the
+controller, no broker is needed.
 
 ## Upgrading from 1.x
 

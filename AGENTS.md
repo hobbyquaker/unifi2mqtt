@@ -50,8 +50,13 @@ items is a breaking change — document in CHANGELOG (migration table) and READM
 - `lib/hadiscovery.js` — `discoveryModel()`: array of device blocks (bridge, one per UniFi device,
   one per client) via the core's `entity()`.
 - `lib/install.js` — the core installer (`createInstaller`) wired to unifi2mqtt.
-- `config.js` — adapter options on top of the core's `parseConfig()`; exports `OPTIONS`, `check`
-  and the parsed config (camelCased).
+- `lib/options.js` — the adapter's option definitions (`OPTIONS`, `check`); `config.js` runs the
+  core's `parseConfig()` on them at import and exports the parsed config (camelCased) plus
+  re-exports `OPTIONS`/`check`. `scripts/dump.js` reuses the definitions without parsing the
+  adapter's argv.
+- `lib/redact.js` — `createRedactor()`: consistent redaction (macs, public ips, names, SSIDs,
+  serials, secrets) for controller dumps. `scripts/dump.js` — the dump tool (README "Controller
+  compatibility"); not part of the npm package.
 - `test/` — node:test unit tests, no network: `test/fixtures/*.json` are hand-written API
   responses shaped after the documented UniFi API (not captured from a controller).
 - `deploy.sh [user@host]` — dev deploy by tarball; same script as lgsb2mqtt, keep in sync.

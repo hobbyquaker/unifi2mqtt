@@ -198,13 +198,9 @@ core.
 
 ### Diagnostics and robustness
 
-- `--once` / `scripts/dump.js`: log in, print the inventory (devices with uplink and ports,
-  networks with VLANs, WLANs, clients with their key, SSID, network, VLAN and whether the
-  current filter would publish them), the raw `stat/sta`, `stat/device`, `rest/wlanconf`,
-  `stat/health` responses, a minute of websocket frames and the OpenAPI document — redacted
-  (macs, ips, names, serials with a fixed substitution) — without a broker. This is how fixtures
-  from real controllers get into `test/fixtures/` and how users check filters before enabling
-  client publication.
+- `scripts/dump.js` exists (inventory summary, redacted api responses, websocket capture,
+  Integration API / v2 probes). Still to do: show whether the current `--clients` filter would
+  publish each client, and a `--once` alias in the main binary.
 - Rate limits: honour `429` + `Retry-After`; exponential backoff with jitter on 5xx / network
   errors instead of the fixed 10 s retry; one re-login per burst of concurrent 401s (some
   versions lock the account after a few failed logins).
