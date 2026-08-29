@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.3
+
+- mqtt-interfaces-core 0.8: the instance publishes `<name>/maintenance/stats` (memory, CPU share, event loop lag) every 60 s — `--stats-interval`, 0 = off; she shows it on the Instances tab.
+
+## 2.0.2
+
+- mqtt-interfaces-core 0.8: the instance publishes `<name>/maintenance/stats` (memory, CPU share, event loop lag) every 60 s — `--stats-interval`, 0 = off; she shows it on the Instances tab.
+
 ## 2.0.1
 
 - `client/<key>/details` carries `band` (`2.4 GHz` / `5 GHz` / `6 GHz`, from the controller's `radio`) and `channel` (#1).

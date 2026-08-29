@@ -1,6 +1,6 @@
 {
   "name": "unifi2mqtt",
-  "version": "2.0.1",
+  "version": "2.0.3",
   "description": "Interface between Ubiquiti UniFi network controllers and MQTT (client presence, devices, WLANs)",
   "type": "module",
   "main": "index.js",
@@ -55,7 +55,7 @@
     "serviceExtra": []
   },
   "dependencies": {
-    "mqtt-interfaces-core": "^0.6.1",
+    "mqtt-interfaces-core": "^0.8.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
