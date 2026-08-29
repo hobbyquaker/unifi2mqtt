@@ -1,7 +1,7 @@
 {
   "name": "unifi2mqtt",
-  "version": "2.0.0",
-  "description": "Interface between Ubiquiti UniFi network controllers and MQTT (client presence, devices, WLANs), with Home Assistant discovery",
+  "version": "2.0.1",
+  "description": "Interface between Ubiquiti UniFi network controllers and MQTT (client presence, devices, WLANs)",
   "type": "module",
   "main": "index.js",
   "bin": {
@@ -50,7 +50,7 @@
     "spec": "2.0",
     "envPrefix": "UNIFI2MQTT",
     "needs": [
-      "network-host"
+      "network"
     ],
     "serviceExtra": []
   },

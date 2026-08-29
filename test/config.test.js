@@ -1,4 +1,5 @@
 import {test, describe} from 'node:test';
+import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {configSchema} from 'mqtt-interfaces-core';
 
@@ -16,12 +17,15 @@ describe('config schema', () => {
     test('adapter metadata', () => {
         assert.equal(schema.title, 'unifi2mqtt');
         assert.equal(schema['x-adapter'].name, 'unifi2mqtt');
-        assert.equal(schema['x-adapter'].version, '2.0.0');
+        assert.equal(
+            schema['x-adapter'].version,
+            JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version,
+        );
         assert.equal(schema['x-adapter'].envPrefix, 'UNIFI2MQTT');
         assert.deepEqual(schema['x-adapter'].mqttInterfaces, {
             spec: '2.0',
             envPrefix: 'UNIFI2MQTT',
-            needs: ['network-host'],
+            needs: ['network'],
             serviceExtra: [],
         });
     });

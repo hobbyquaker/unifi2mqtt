@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.0.1
 
 - `client/<key>/details` carries `band` (`2.4 GHz` / `5 GHz` / `6 GHz`, from the controller's `radio`) and `channel` (#1).
 - `set/device/<key>/provision` force-provisions a device — the controller sometimes leaves an AP behind after a WLAN change (#5).
