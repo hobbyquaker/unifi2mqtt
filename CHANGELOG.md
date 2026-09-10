@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.4
+
+### Fixed
+
+- **Home Assistant refused every device this adapter published.** The availability entries of the
+  discovery payload carried `avty_tpl`. Inside an entry of an `availability` list
+  that key expands to `availability_template`, which Home Assistant's schema for such an entry does
+  not allow (there the template is `val_tpl`), and the device payload is validated as a whole: HA
+  logged "Invalid MQTT device discovery payload" through
+  `homeassistant.components.mqtt.discovery` and created nothing of the device. Found on lgtv2mqtt
+  ([#20](https://github.com/hobbyquaker/lgtv2mqtt/issues/20)), fixed in `mqtt-interfaces-core`
+  0.15.2.
+  **After updating**, clear the retained discovery messages once so nothing of the refused payloads
+  is left behind (`mosquitto_sub -t 'homeassistant/device/#' -v` shows them; an empty retained
+  message on such a topic removes it).
+- The core moves from 0.8 to 0.15.2 with this release.
+
 ## 2.0.3
 
 - mqtt-interfaces-core 0.8: the instance publishes `<name>/maintenance/stats` (memory, CPU share, event loop lag) every 60 s — `--stats-interval`, 0 = off; she shows it on the Instances tab.
