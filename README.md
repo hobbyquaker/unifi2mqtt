@@ -217,8 +217,8 @@ overrides.
 | UniFi OS consoles (UDM, UDM Pro/SE, UDR, UCK G2+, UCG) | implemented after the documented api, **not yet verified**        |
 | legacy self-hosted Network application (:8443)         | implemented after the 1.x adapter's api use, **not yet verified** |
 
-Run with `--verbosity debug` to see every request and websocket frame; ROADMAP.md lists the
-assumptions to check. The quickest way to help is a dump from your controller:
+Run with `--verbosity debug` to see every request and websocket frame. The quickest way to help is a
+dump from your controller:
 
 ```
 git clone https://github.com/hobbyquaker/unifi2mqtt && cd unifi2mqtt && npm ci

@@ -37,7 +37,7 @@ Complete rewrite on [mqtt-interfaces-core](https://github.com/hobbyquaker/mqtt-i
 (`ubnt-unifi`, `mqtt@2`, `yargs@12`, CommonJS) is gone; the topic layout changed — see the
 migration section below. **Nothing has been verified against a real controller yet** (the
 implementation follows the documented UniFi OS and legacy APIs and is tested against fixtures);
-see README "Controller compatibility" and ROADMAP.md.
+see README "Controller compatibility" and the roadmap.
 
 ### Breaking
 

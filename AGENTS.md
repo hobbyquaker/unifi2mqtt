@@ -12,8 +12,10 @@ and, since 2.0, is built on
 [mqtt-interfaces-core](https://github.com/hobbyquaker/mqtt-interfaces-core) (`../mqtt-interfaces-core`
 when checked out next to this repo — generic fixes go there; its README is the complete guide to
 building an adapter). Consistency with the core's conventions and with lgtv2mqtt / lgsb2mqtt /
-cul2mqtt is a hard requirement. ROADMAP.md lists what is planned and, above all, what still needs
-verification on real controllers — **nothing has been run against hardware yet**.
+cul2mqtt is a hard requirement. The roadmap — items, decisions, appendices — is kept in the maintainer's
+agents repository, checked out next to this one as `../she-agent/roadmap-items/unifi2mqtt/`. It lists what is planned
+and, above all, what still needs verification on real controllers — **nothing has been run against
+hardware yet**.
 
 ## MQTT conventions (mqtt-smarthome)
 
@@ -82,8 +84,8 @@ CI runs both on Node 20/22/24. `node index.js --config-schema` must print valid 
 
 ## Known weak spots (be careful around these)
 
-- **Unverified API details** — see ROADMAP.md "Verification on real controllers". Do not "fix"
-  paths or field names from memory; get a debug log or a fixture from a real controller first.
+- **Unverified API details** — see the roadmap's appendix "Verification on real controllers". Do not
+  "fix" paths or field names from memory; get a debug log or a fixture from a real controller first.
 - Presence vs. polling lag: a client that connects via an event may be missing from the next
   `stat/sta` for a moment, so `applyClients()` keeps event-sighted clients for `EVENT_GRACE_MS`
   (30 s) or `--presence-timeout`, whichever is longer. Poll-sighted clients drop after
