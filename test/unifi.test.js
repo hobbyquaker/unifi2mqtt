@@ -38,6 +38,13 @@ function fakeController({
             if (loginStatus === 499) {
                 return {status: 499, headers: {}, body: '{"code":"MFA_AUTH_REQUIRED","message":"..."}'};
             }
+            if (loginStatus === 429) {
+                return {
+                    status: 429,
+                    headers: {'retry-after': '120'},
+                    body: '{"message":"You\'ve reached the login attempt limit","code":"AUTHENTICATION_FAILED_LIMIT_REACHED"}',
+                };
+            }
             if (loginStatus !== 200) {
                 return {status: loginStatus, headers: {}, body: '{"code":"AUTHENTICATION_FAILED_INVALID_CREDENTIALS"}'};
             }
@@ -204,6 +211,26 @@ describe('UnifiController — UniFi OS', () => {
         );
     });
 
+    test('a rate-limited login (429) is classified and carries the status and Retry-After', async () => {
+        const {transport, calls} = fakeController({loginStatus: 429});
+        const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
+        await assert.rejects(
+            c.clients(),
+            (err) =>
+                err instanceof UnifiError &&
+                err.status === 429 &&
+                err.retryAfter === 120000 &&
+                /login failed: rate-limited by the controller \(AUTHENTICATION_FAILED_LIMIT_REACHED\)/.test(
+                    err.message,
+                ),
+        );
+        // no flavour re-probe after a classified rejection
+        assert.deepEqual(
+            calls.map((x) => x.path),
+            ['/', '/api/auth/login'],
+        );
+    });
+
     test('an account with 2fa is reported as such (HTTP 499)', async () => {
         const {transport} = fakeController({loginStatus: 499});
         const c = new UnifiController({url: 'https://udm', ...creds, request: transport});
@@ -304,5 +331,10 @@ describe('loginFailure', () => {
         assert.match(loginFailure(499, undefined), /two-factor/);
         assert.match(loginFailure(400, {meta: {rc: 'error', msg: 'api.err.Ubic2faTokenRequired'}}), /two-factor/);
         assert.equal(loginFailure(502, undefined), 'http 502');
+        assert.match(
+            loginFailure(429, {code: 'AUTHENTICATION_FAILED_LIMIT_REACHED'}),
+            /rate-limited by the controller \(AUTHENTICATION_FAILED_LIMIT_REACHED\)/,
+        );
+        assert.match(loginFailure(429, undefined), /rate-limited by the controller —/);
     });
 });

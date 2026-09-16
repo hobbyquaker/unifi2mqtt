@@ -148,6 +148,22 @@ describe('EventStream', () => {
         stream.stop();
     });
 
+    test('connect() before start() does nothing, and says so', () => {
+        FakeWebSocket.instances = [];
+        const lines = [];
+        const stream = new EventStream({
+            controller: controller(),
+            WebSocket: FakeWebSocket,
+            log: {debug: (...a) => lines.push(a.join(' ')), info() {}, warn() {}, error() {}},
+        });
+        stream.connect();
+        assert.equal(FakeWebSocket.instances.length, 0);
+        assert.ok(lines.some((l) => /websocket not started/.test(l)));
+        stream.start();
+        assert.equal(FakeWebSocket.instances.length, 1);
+        stream.stop();
+    });
+
     test('does not connect before the controller is logged in; stop cancels the retry', async () => {
         FakeWebSocket.instances = [];
         const stream = new EventStream({
