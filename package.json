@@ -55,7 +55,7 @@
     "serviceExtra": []
   },
   "dependencies": {
-    "mqtt-interfaces-core": "^0.15.2",
+    "mqtt-interfaces-core": "^0.16.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
