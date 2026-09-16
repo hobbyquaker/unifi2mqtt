@@ -9,10 +9,9 @@ import {UnifiController} from './lib/unifi.js';
 import {EventStream} from './lib/events.js';
 import {NetworkState} from './lib/model.js';
 import {discoveryModel} from './lib/hadiscovery.js';
+import {retryDelay} from './lib/retry.js';
 
 handleInstall(config);
-
-const RETRY_INTERVAL = 10000;
 
 const adapter = createAdapter({
     pkg,
@@ -37,6 +36,8 @@ const adapter = createAdapter({
         }),
     onSet: handleSet,
     onShutdown: shutdownDevice,
+    // what a previous run left retained on the broker: reconciled after the first poll
+    readback: true,
 });
 const {log, pubStatus, clearStatus, setDeviceConnected} = adapter;
 
@@ -62,6 +63,8 @@ let expiryTimer = null;
 let discoveryTimer = null;
 let polling = false;
 let lastError = null;
+let rateLimited = 0; // consecutive logins the controller answered with 429
+let reconciled = false; // the retained leftovers of a previous run were cleared
 
 /*
  * publishing
@@ -106,6 +109,34 @@ function scheduleExpiry() {
     }, due + 50);
 }
 
+/**
+ * Once, after the first complete poll: every client, device and wlan topic that a previous run
+ * left retained on the broker and that this run has not published is gone from the controller's
+ * point of view (a client that left while the adapter was down, a renamed client, a client now
+ * excluded by --clients) — clear it, so nothing stays `present: true` from a previous life.
+ */
+function reconcileRetained() {
+    if (typeof adapter.readbackDone !== 'function') {
+        return; // mqtt-interfaces-core < 0.16: no readback
+    }
+    adapter.readbackDone().then(() => {
+        if (adapter.shuttingDown) {
+            return;
+        }
+        const stale = adapter.staleStatus().filter((item) => /^(client|device|wifi)\//.test(item));
+        for (const item of stale) {
+            clearStatus(item);
+        }
+        if (stale.length > 0) {
+            log.info(
+                'unifi cleared',
+                stale.length,
+                'retained item(s) of a previous run the controller no longer reports',
+            );
+        }
+    });
+}
+
 /*
  * polling
  */
@@ -115,6 +146,7 @@ async function poll() {
         return;
     }
     polling = true;
+    let nextDelay = null;
     try {
         const [devices, wlans, clients] = await Promise.all([
             controller.devices(),
@@ -125,10 +157,15 @@ async function poll() {
         apply(state.applyDevices(devices));
         apply(state.applyWlans(wlans));
         apply(state.applyClients(clients));
+        if (!reconciled) {
+            reconciled = true;
+            reconcileRetained();
+        }
         if (!adapter.deviceConnected) {
             log.info('unifi controller', controller.url, 'connected');
         }
         lastError = null;
+        rateLimited = 0;
         setDeviceConnected(true);
         adapter.publishInfo();
         if (stream && !stream.connected) {
@@ -136,11 +173,32 @@ async function poll() {
         }
     } catch (err) {
         const message = (err && err.message) || String(err);
-        if (message !== lastError) {
-            log.warn('unifi controller', controller.url, 'poll failed:', message);
+        if (err && err.status === 429) {
+            // a locked account: retrying quickly keeps it locked, so wait long and say so every time
+            rateLimited += 1;
+            nextDelay = retryDelay({
+                status: 429,
+                retryAfter: err.retryAfter,
+                attempt: rateLimited,
+                interval: config.pollInterval * 1000,
+            });
+            log.warn(
+                'unifi controller',
+                controller.url,
+                'login rate-limited, next attempt in',
+                Math.round(nextDelay / 1000),
+                's:',
+                message,
+            );
             lastError = message;
         } else {
-            log.debug('unifi poll failed again:', message);
+            rateLimited = 0;
+            if (message !== lastError) {
+                log.warn('unifi controller', controller.url, 'poll failed:', message);
+                lastError = message;
+            } else {
+                log.debug('unifi poll failed again:', message);
+            }
         }
         if (adapter.deviceConnected) {
             log.info('unifi controller', controller.url, 'disconnected');
@@ -148,11 +206,11 @@ async function poll() {
         setDeviceConnected(false);
     } finally {
         polling = false;
-        schedulePoll();
+        schedulePoll(nextDelay);
     }
 }
 
-function schedulePoll() {
+function schedulePoll(delay = null) {
     if (adapter.shuttingDown) {
         return;
     }
@@ -160,7 +218,9 @@ function schedulePoll() {
         clearTimeout(pollTimer);
     }
     const interval = config.pollInterval * 1000;
-    const delay = adapter.deviceConnected ? interval : Math.min(interval, RETRY_INTERVAL);
+    if (delay === null) {
+        delay = adapter.deviceConnected ? interval : retryDelay({interval});
+    }
     pollTimer = setTimeout(poll, delay);
 }
 
@@ -194,6 +254,8 @@ if (config.events) {
             refreshDevices().catch((err) => log.debug('unifi device refresh failed:', err.message));
         }
     });
+    // the stream connects once the poll loop has logged in (and is nudged after every poll)
+    stream.start();
 }
 
 /*

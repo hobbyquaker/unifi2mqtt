@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.0.5
+
+### Fixed
+
+- **The event websocket never connected** ([#21](https://github.com/hobbyquaker/unifi2mqtt/issues/21)).
+  `index.js` constructed the event stream but never started it, so every connect attempt returned
+  at its guard, silently, and the adapter ran on polling only (`<name>/info` said
+  `events: false`). It connects now, once the poll loop has logged in; `connect()` on a stream
+  that was not started says so at `debug`.
+- **Stale retained presence after a restart** ([#22](https://github.com/hobbyquaker/unifi2mqtt/issues/22)).
+  A client that left the network while the adapter was down kept `present: true` for ever: the
+  adapter never knew what it had retained. With mqtt-interfaces-core 0.16 it reads back its
+  retained status on the first broker connect and, after the first poll, clears every `client/`,
+  `device/` and `wifi/` item the controller no longer reports (README "Topics"). On an older core
+  the readback is skipped.
+- **A rate-limited login (HTTP 429) was retried every 10 s** ([#23](https://github.com/hobbyquaker/unifi2mqtt/issues/23)),
+  which on UniFi OS Server kept the account lockout alive and, at the default verbosity, went
+  quiet after one warning. Now the adapter waits for `Retry-After` when sent, else 5 minutes
+  doubling up to 30, and warns on every attempt (`lib/retry.js`).
+
 ## 2.0.4
 
 ### Fixed

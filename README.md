@@ -155,6 +155,13 @@ else the hostname, else the mac address (`--client-key hostname` / `mac` to choo
 was seen once keeps its topics; when it is renamed the old topics are cleared and the new ones
 published. With `--clients` only the listed clients get topics (counts still cover everyone).
 
+**After a restart** the adapter reads back what it retained on the broker in a previous run and,
+once the first poll is in, clears every `client/…`, `device/…` and `wifi/…` topic the controller
+no longer reports — a client that left while the adapter was down, a renamed client, a client now
+excluded by `--clients`. Nothing stays `present: true` from a previous life
+([#22](https://github.com/hobbyquaker/unifi2mqtt/issues/22)); the log says how many items were
+cleared. Needs mqtt-interfaces-core 0.16; on an older core the readback is skipped.
+
 **Presence** comes from two sources: the client list (`stat/sta`) polled every `--poll-interval`
 seconds, and the controller's event websocket (connect / disconnect / roam events, instant). A
 client disappears (`present: false`) when a disconnect event arrives or a poll no longer lists
@@ -216,6 +223,12 @@ overrides.
 | ------------------------------------------------------ | ----------------------------------------------------------------- |
 | UniFi OS consoles (UDM, UDM Pro/SE, UDR, UCK G2+, UCG) | implemented after the documented api, **not yet verified**        |
 | legacy self-hosted Network application (:8443)         | implemented after the 1.x adapter's api use, **not yet verified** |
+
+A login the controller **rate-limits** (HTTP 429 — UniFi OS answers
+`AUTHENTICATION_FAILED_LIMIT_REACHED` after too many failed logins and locks the account for a
+while) is not retried every 10 s, because each attempt can extend the lockout: the adapter waits
+for `Retry-After` when the controller sends it, else 5 minutes, doubling up to 30, and says so at
+`warn` on every attempt ([#23](https://github.com/hobbyquaker/unifi2mqtt/issues/23)).
 
 Run with `--verbosity debug` to see every request and websocket frame. The quickest way to help is a
 dump from your controller:
