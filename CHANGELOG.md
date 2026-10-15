@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.6
+
+### Fixed
+
+- **The WLAN switches and the devices' Online sensors stayed unknown in Home Assistant.** Their
+  status is a JSON boolean, and the default state template `{{ value_json.val }}` rendered it as
+  `False` / `True`, which never matched `pl_on: 'true'` / `stat_on: 'true'`. Fixed in
+  `mqtt-interfaces-core` 0.17.1, which this release brings in: a boolean renders as `true` /
+  `false`. Found through lgtv2mqtt [#21](https://github.com/hobbyquaker/lgtv2mqtt/issues/21),
+  reported and diagnosed by @daviddu26 — thank you!
+- `mqtt-interfaces-core` 0.17.1 also brings 0.17 (an availability entry of the adapter's own status
+  tree waits for its item's value).
+
 ## 2.0.5
 
 ### Fixed
