@@ -1,6 +1,7 @@
 import {test, describe} from 'node:test';
 import assert from 'node:assert/strict';
 import {devicePayload} from 'mqtt-interfaces-core';
+import {VALUE_TEMPLATE} from 'mqtt-interfaces-core/hadiscovery';
 
 import {discoveryModel} from '../lib/hadiscovery.js';
 
@@ -58,7 +59,10 @@ describe('discoveryModel', () => {
         assert.equal(c.wifi_Home_WiFi_enabled.name, 'Home WiFi');
         assert.equal(c.wifi_Guests_enabled.ic, 'mdi:wifi-lock-open');
         assert.equal(c.wifi_Guests_client_count.stat_t, 'unifi/status/wifi/Guests/client_count');
-        assert.equal(c.client_count.val_tpl, '{{ value_json.val }}');
+        assert.equal(c.client_count.val_tpl, VALUE_TEMPLATE);
+        // a JSON boolean must render as true/false to match pl_on/stat_on (lgtv2mqtt#21, core 0.17.1)
+        assert.equal(c.wifi_Home_WiFi_enabled.val_tpl, VALUE_TEMPLATE);
+        assert.equal(c.wifi_Home_WiFi_enabled.stat_on, 'true');
     });
 
     test('unifi devices: own HA device via the bridge with connectivity, led select, clients', () => {
