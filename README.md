@@ -14,12 +14,9 @@ events arrive instantly over the controller's event websocket, WLANs and device 
 switched, and everything is announced to Home Assistant via MQTT discovery (one `device_tracker`
 per client).
 
-**Status: 2.0.0 is a complete rewrite that has not yet been verified against a real controller.**
-It follows the documented UniFi OS and legacy APIs and is tested against fixture responses; see
-[Controller compatibility](#controller-compatibility) and please report what works and what does
-not. 1.x users: see [Upgrading from 1.x](#upgrading-from-1x).
-
 ## Install
+
+1.x users: see [Upgrading from 1.x](#upgrading-from-1x).
 
 ```
 npm install -g unifi2mqtt
